@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SkyBlock Ironman Dashboard</title>
+<style>
+  :root {
+    --bg: #10131c; --panel: #1a1f2e; --panel2: #222941;
+    --border: #2e3650; --text: #e8ecf5; --dim: #9aa3bd;
+    --gold: #ffaa00; --green: #55ff55; --red: #ff5555; --aqua: #55ffff;
+    --high: #ff5555; --med: #ffaa00; --low: #55ff55;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: "Segoe UI", system-ui, sans-serif; line-height: 1.45; }
+  a { color: var(--aqua); }
+  .wrap { max-width: 1150px; margin: 0 auto; padding: 18px 20px 80px; }
+
+  header.top { display: flex; align-items: center; gap: 16px; flex-wrap: wrap; padding: 18px 0 6px; }
+  header.top img.face { width: 56px; height: 56px; image-rendering: pixelated; border-radius: 8px; border: 2px solid var(--border); }
+  header.top h1 { font-size: 26px; }
+  .badge { display: inline-block; padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; letter-spacing: .4px; }
+  .badge.ironman { background: #3a2f14; color: var(--gold); border: 1px solid #6b5518; }
+  .badge.normal { background: #1e3050; color: #7db4ff; border: 1px solid #2d4a7a; }
+  .updated { color: var(--dim); font-size: 13px; margin-left: auto; text-align: right; }
+
+  .statrow { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; margin: 14px 0 6px; }
+  .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .stat .k { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .stat .v { font-size: 20px; font-weight: 700; margin-top: 2px; }
+
+  nav.toc { position: sticky; top: 0; z-index: 5; background: rgba(16,19,28,.94); backdrop-filter: blur(4px); display: flex; gap: 4px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  nav.toc a { color: var(--dim); text-decoration: none; padding: 5px 12px; border-radius: 8px; font-size: 14px; }
+  nav.toc a:hover { color: var(--text); background: var(--panel2); }
+
+  section { margin-top: 30px; }
+  section h2 { font-size: 20px; margin-bottom: 12px; padding-bottom: 6px; border-bottom: 1px solid var(--border); }
+  .hint { color: var(--dim); font-size: 13px; margin: -6px 0 12px; }
+
+  .warn { background: #3a2323; border: 1px solid #6b3535; color: #ffb3b3; border-radius: 10px; padding: 10px 14px; margin: 10px 0; font-size: 14px; }
+
+  /* recommendations */
+  .rec { background: var(--panel); border: 1px solid var(--border); border-left: 5px solid var(--dim); border-radius: 10px; padding: 12px 16px; margin-bottom: 10px; }
+  .rec.p1 { border-left-color: var(--high); }
+  .rec.p2 { border-left-color: var(--med); }
+  .rec.p3 { border-left-color: var(--low); }
+  .rec .rhead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+  .rec .prio { font-size: 11px; font-weight: 800; letter-spacing: .8px; padding: 2px 8px; border-radius: 6px; }
+  .rec.p1 .prio { background: #3d1a1a; color: var(--high); }
+  .rec.p2 .prio { background: #3a2f14; color: var(--med); }
+  .rec.p3 .prio { background: #16321a; color: var(--low); }
+  .rec .cat { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
+  .rec .title { font-weight: 700; font-size: 15px; }
+  .rec .why { color: var(--dim); font-size: 14px; margin-top: 6px; }
+  .rec .how { font-size: 14px; margin-top: 4px; }
+  .rec .how b { color: var(--green); font-weight: 600; }
+
+  /* grids */
+  .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 10px; }
+  .card { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+  .card .name { font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 8px; }
+  .card .lvl { font-size: 18px; font-weight: 800; }
+  .bar { height: 7px; background: #0c0f17; border-radius: 4px; margin-top: 8px; overflow: hidden; }
+  .bar > i { display: block; height: 100%; background: linear-gradient(90deg, #2f81f7, #55ffff); border-radius: 4px; }
+  .bar.gold > i { background: linear-gradient(90deg, #b47800, #ffd257); }
+  .sub { color: var(--dim); font-size: 12px; margin-top: 5px; }
+  .maxed { color: var(--gold); font-weight: 700; }
+
+  /* items */
+  .item { position: relative; cursor: default; }
+  .item .tip { display: none; position: absolute; z-index: 20; left: 8px; top: calc(100% + 4px); background: #14091e; border: 2px solid #3b1f57; border-radius: 8px; padding: 10px 14px; min-width: 280px; max-width: 420px; box-shadow: 0 8px 30px rgba(0,0,0,.6); font-family: Consolas, monospace; font-size: 12.5px; white-space: pre-wrap; }
+  .item:hover .tip { display: block; }
+  table.plain { width: 100%; border-collapse: collapse; font-size: 14px; }
+  table.plain th, table.plain td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--border); }
+  table.plain th { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; }
+  .r-COMMON{color:#fff}.r-UNCOMMON{color:#55ff55}.r-RARE{color:#5555ff}.r-EPIC{color:#aa00aa}.r-LEGENDARY{color:#ffaa00}.r-MYTHIC{color:#ff55ff}.r-DIVINE{color:#55ffff}.r-SPECIAL{color:#ff5555}.r-VERY.SPECIAL{color:#ff5555}
+
+  /* minecraft colors */
+  .mc0{color:#000}.mc1{color:#0000aa}.mc2{color:#00aa00}.mc3{color:#00aaaa}.mc4{color:#aa0000}.mc5{color:#aa00aa}.mc6{color:#ffaa00}.mc7{color:#bbb}.mc8{color:#777}.mc9{color:#5555ff}.mca{color:#55ff55}.mcb{color:#55ffff}.mcc{color:#ff5555}.mcd{color:#ff55ff}.mce{color:#ffff55}.mcf{color:#fff}
+  .mcl{font-weight:700}.mco{font-style:italic}.mcn{text-decoration:underline}.mcm{text-decoration:line-through}
+
+  .filterbar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
+  .filterbar button { background: var(--panel); color: var(--dim); border: 1px solid var(--border); border-radius: 8px; padding: 5px 14px; cursor: pointer; font-size: 13px; }
+  .filterbar button.on { color: var(--text); background: var(--panel2); border-color: #46538a; }
+
+  .errbox { background: var(--panel); border: 1px solid #6b3535; border-radius: 12px; padding: 30px; margin-top: 40px; text-align: center; }
+  .errbox h2 { color: var(--red); border: none; }
+  .errbox p { color: var(--dim); margin-top: 10px; white-space: pre-wrap; }
+  footer { margin-top: 50px; color: var(--dim); font-size: 12px; text-align: center; }
+</style>
+</head>
+<body>
+<div class="wrap" id="app"><p style="margin-top:40px;color:#9aa3bd">Loading… (if this never goes away, run <b>Refresh Dashboard.bat</b> first so data.js exists)</p></div>
+
+<script src="data.js"></script>
+<script>
+"use strict";
+const D = window.DASHBOARD_DATA;
+const app = document.getElementById("app");
+const esc = s => String(s ?? "").replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+const fmt = n => n == null ? "—" : Math.round(n).toLocaleString("en-US");
+const fmtBig = n => {
+  if (n == null) return "—";
+  const a = Math.abs(n);
+  if (a >= 1e9) return (n/1e9).toFixed(2) + "B";
+  if (a >= 1e6) return (n/1e6).toFixed(2) + "M";
+  if (a >= 1e3) return (n/1e3).toFixed(1) + "k";
+  return String(Math.round(n));
+};
+const cap = s => s ? s[0].toUpperCase() + s.slice(1) : s;
+const titleCase = s => String(s||"").toLowerCase().split("_").map(cap).join(" ");
+
+// Minecraft § color codes → HTML
+function mc(str) {
+  if (!str) return "";
+  let out = "", open = 0, cls = [];
+  const parts = String(str).split(/(§.)/);
+  for (const p of parts) {
+    if (/^§./.test(p)) {
+      const c = p[1].toLowerCase();
+      if (c === "r") { out += "</span>".repeat(open); open = 0; }
+      else if (c === "k") { /* obfuscated: skip */ }
+      else { out += `<span class="mc${c}">`; open++; }
+    } else if (p) out += esc(p);
+  }
+  return out + "</span>".repeat(open);
+}
+const mcTip = lore => (lore || []).map(l => mc(l) || "&nbsp;").join("<br>");
+
+function bar(progress, gold) {
+  const pct = Math.max(0, Math.min(100, (progress ?? 0) * 100));
+  return `<div class="bar${gold ? " gold" : ""}"><i style="width:${pct}%"></i></div>`;
+}
+
+function render() {
+  if (!D) return;
+  if (D.error) {
+    app.innerHTML = `<div class="errbox"><h2>⚠ ${esc(D.error.title)}</h2><p>${esc(D.error.detail)}</p></div>`;
+    return;
+  }
+  const P = D.player, O = D.overview;
+  const when = new Date(D.generatedAt);
+  const ageH = (Date.now() - when.getTime()) / 3.6e6;
+
+  let html = `
+  <header class="top">
+    ${P.face ? `<img class="face" src="${esc(P.face)}" alt="">` : ""}
+    <div>
+      <h1>${esc(P.username)} <span style="color:var(--dim);font-weight:400">· ${esc(P.profileName)}</span></h1>
+      <span class="badge ${P.gameMode === "ironman" ? "ironman" : "normal"}">${P.gameMode === "ironman" ? "♻ IRONMAN" : esc((P.gameMode || "normal").toUpperCase())}</span>
+    </div>
+    <div class="updated">Data refreshed<br><b>${when.toLocaleString()}</b>${ageH > 26 ? `<br><span style="color:var(--med)">⚠ over ${Math.floor(ageH)}h old - run Refresh Dashboard.bat</span>` : ""}</div>
+  </header>`;
+
+  for (const w of D.warnings || []) html += `<div class="warn">⚠ ${esc(w)}</div>`;
+  if (D.api && D.api.inventories === false)
+    html += `<div class="warn">⚠ Inventory API is disabled on Hypixel - gear &amp; accessory sections are empty. Enable it: SkyBlock Menu → Settings → Personal → API Settings.</div>`;
+
+  html += `<div class="statrow">
+    <div class="stat"><div class="k">Skill Average</div><div class="v">${O.skillAverage != null ? O.skillAverage.toFixed(1) : "—"}</div></div>
+    <div class="stat"><div class="k">SkyBlock Level</div><div class="v">${O.skyblockXp != null ? Math.floor(O.skyblockXp / 100) : "—"}</div></div>
+    <div class="stat"><div class="k">Magical Power</div><div class="v">${fmt(O.magicalPower)}</div></div>
+    <div class="stat"><div class="k">Catacombs</div><div class="v">${D.dungeons.catacombsLevel}</div></div>
+    <div class="stat"><div class="k">Slayer XP</div><div class="v">${fmtBig(D.slayerTotalXp)}</div></div>
+    <div class="stat"><div class="k">Networth (est.)</div><div class="v">${fmtBig(D.overview.networth?.normal)}</div></div>
+    <div class="stat"><div class="k">Purse</div><div class="v">${fmtBig(O.purse)}</div></div>
+  </div>
+
+  <nav class="toc">
+    <a href="#recs">✅ To-Do</a><a href="#skills">Skills</a><a href="#slayers">Slayers</a><a href="#dungeons">Dungeons</a>
+    <a href="#gear">Gear</a><a href="#gearreview">Gear by Activity</a><a href="#acctracker">Accessory Tracker</a>
+    <a href="#accessories">Accessories</a><a href="#pets">Pets</a><a href="#minions">Minions</a>
+  </nav>`;
+
+  // ---- Recommendations
+  const recs = D.recommendations || [];
+  const cats = [...new Set(recs.map(r => r.category))];
+  html += `<section id="recs"><h2>Prioritized To-Do List <span style="color:var(--dim);font-size:14px;font-weight:400">(${recs.length} items, Ironman-friendly)</span></h2>
+    <div class="hint">Red = do this first · Orange = next up · Green = nice to have. Hover items elsewhere on the page for details.</div>
+    <div class="filterbar" id="recfilter">
+      <button data-c="*" class="on">All</button>
+      ${cats.map(c => `<button data-c="${esc(c)}">${esc(c)}</button>`).join("")}
+    </div>
+    <div id="reclist">
+    ${recs.map(r => `
+      <div class="rec p${r.priority}" data-c="${esc(r.category)}">
+        <div class="rhead">
+          <span class="prio">${["", "HIGH", "MEDIUM", "LOW"][r.priority]}</span>
+          <span class="cat">${esc(r.category)}</span>
+          <span class="title">${esc(r.title)}</span>
+        </div>
+        <div class="why">${esc(r.why)}</div>
+        <div class="how"><b>How:</b> ${esc(r.how)}</div>
+      </div>`).join("")}
+    ${recs.length === 0 ? `<p class="hint">Nothing to recommend - impressive profile!</p>` : ""}
+    </div></section>`;
+
+  // ---- Skills
+  const skillOrder = ["combat","mining","farming","foraging","fishing","enchanting","alchemy","taming","carpentry","hunting","runecrafting","social"];
+  const skills = skillOrder.filter(s => D.skills[s]).map(s => [s, D.skills[s]]);
+  html += `<section id="skills"><h2>Skills</h2><div class="grid">` + skills.map(([n, s]) => {
+    const maxed = s.level >= s.maxLevel;
+    return `<div class="card">
+      <div class="name"><span>${cap(n)}</span><span class="lvl ${maxed ? "maxed" : ""}">${s.level}${maxed ? " ★" : ""}</span></div>
+      ${bar(maxed ? 1 : s.progress, maxed)}
+      <div class="sub">${maxed ? "MAXED" : `${fmtBig(s.xpCurrent)} / ${fmtBig(s.xpForNext)} to ${s.level + 1}`} · total ${fmtBig(s.xp)} XP</div>
+    </div>`;
+  }).join("") + `</div></section>`;
+
+  // ---- Slayers
+  const slayerOrder = ["zombie","spider","wolf","enderman","blaze","vampire"];
+  const slayerNames = { zombie:"Revenant (Zombie)", spider:"Tarantula (Spider)", wolf:"Sven (Wolf)", enderman:"Voidgloom (Enderman)", blaze:"Inferno (Blaze)", vampire:"Riftstalker (Vampire)" };
+  html += `<section id="slayers"><h2>Slayers</h2><div class="grid">` + slayerOrder.map(b => {
+    const s = D.slayers[b] || { level: 0, maxLevel: 9, xp: 0, xpForNext: null, progress: 0 };
+    const maxed = s.level >= s.maxLevel;
+    return `<div class="card">
+      <div class="name"><span>${slayerNames[b] || cap(b)}</span><span class="lvl ${maxed ? "maxed" : ""}">${s.level}${maxed ? " ★" : ""}</span></div>
+      ${bar(maxed ? 1 : s.progress, maxed)}
+      <div class="sub">${maxed ? "MAXED" : s.xpForNext ? `${fmtBig(s.xpForNext)} XP to level ${s.level + 1}` : "not started"} · total ${fmtBig(s.xp)} XP</div>
+    </div>`;
+  }).join("") + `</div></section>`;
+
+  // ---- Dungeons
+  const dg = D.dungeons;
+  html += `<section id="dungeons"><h2>Dungeons</h2><div class="grid">
+    <div class="card"><div class="name"><span>Catacombs</span><span class="lvl">${dg.catacombsLevel}</span></div>${bar(dg.catacombsProgress)}<div class="sub">Selected class: ${cap(dg.selectedClass) || "—"} · Secrets found: ${fmt(dg.secretsFound)} · Class avg: ${dg.classAverage ? dg.classAverage.toFixed(1) : "—"}</div></div>
+    ${Object.entries(dg.classLevels || {}).map(([c, v]) => `<div class="card"><div class="name"><span>${cap(c)}</span><span class="lvl">${v.level}</span></div>${bar(v.progress)}</div>`).join("")}
+  </div></section>`;
+
+  // ---- Gear
+  const item = it => `<div class="card item">
+      <div class="name"><span>${mc(it.name)}</span></div>
+      <div class="sub">${it.reforge ? cap(it.reforge) + " · " : ""}${it.rarity ? `<span class="r-${esc(it.rarity)}">${esc(it.rarity)}</span>` : ""}${it.recombobulated ? " · recombed" : ""}${it.hotPotato ? ` · HPB ${it.hotPotato}` : ""}</div>
+      <div class="tip">${mcTip(it.lore)}</div>
+    </div>`;
+  html += `<section id="gear"><h2>Gear</h2><div class="hint">Hover a piece to see its full in-game tooltip. Wardrobe holds ${D.gear.wardrobePieces} more piece(s).</div>`;
+  html += `<h3 style="margin:8px 0;color:var(--dim);font-size:14px">WORN ARMOR</h3><div class="grid">${D.gear.armor.map(item).join("") || `<p class="hint">No armor data (API off or nothing equipped).</p>`}</div>`;
+  html += `<h3 style="margin:16px 0 8px;color:var(--dim);font-size:14px">EQUIPMENT</h3><div class="grid">${D.gear.equipment.map(item).join("") || `<p class="hint">No equipment data.</p>`}</div></section>`;
+
+  // ---- Gear by Activity (deep storage scan)
+  const GR = D.gearReview;
+  if (GR && GR.activities) {
+    html += `<section id="gearreview"><h2>Gear by Activity</h2>
+    <div class="hint">Every armor/equipment set found across your wardrobe, ender chest, backpacks and museum, grouped by what it's for.</div>`;
+    for (const act of GR.activities) {
+      if (!act.sets.length && !act.tools.length) continue;
+      html += `<h3 style="margin:16px 0 8px;color:var(--aqua);font-size:15px">${esc(act.label.toUpperCase())}</h3>`;
+      if (act.sets.length) {
+        html += `<table class="plain"><tr><th>Set</th><th>Pieces</th><th>Stored in</th></tr>` +
+          act.sets.map(s => `<tr${s.museumOnly ? ' style="opacity:.55"' : ''}><td>${esc(s.name)}${s.museumOnly ? ' <span style="color:var(--dim);font-size:11px">(donated to museum)</span>' : ''}</td><td>${s.pieces}</td><td style="color:var(--dim)">${esc(s.where)}</td></tr>`).join("") +
+          `</table>`;
+      }
+      if (act.tools.length) {
+        html += `<div class="sub" style="margin:8px 2px 0"><b style="color:var(--dim)">Tools/weapons found:</b> ${act.tools.map(esc).join(" · ")}</div>`;
+      }
+    }
+    if (GR.housekeeping && GR.housekeeping.length) {
+      html += `<h3 style="margin:18px 0 8px;color:var(--gold);font-size:15px">🧹 HOUSEKEEPING - FREE WINS</h3>` +
+        GR.housekeeping.map(h => `<div class="rec p3" style="padding:8px 14px">${esc(h)}</div>`).join("");
+    }
+    html += `</section>`;
+  }
+
+  // ---- Accessory Tracker
+  const AT = D.accessoryTracker;
+  if (AT) {
+    html += `<section id="acctracker"><h2>Accessory Tracker</h2>`;
+    if (AT.upgrades.length) {
+      html += `<h3 style="margin:8px 0;color:var(--green);font-size:15px">UPGRADES READY - YOU OWN THE LOWER TIER</h3>
+      <table class="plain"><tr><th>You own</th><th>Upgrade to</th><th>Materials</th></tr>` +
+        AT.upgrades.map(u => `<tr><td>${esc(u.have)}</td><td style="color:var(--green)">${esc(u.next)}</td><td style="color:var(--dim)">${esc(u.note)}</td></tr>`).join("") +
+        `</table>`;
+    } else {
+      html += `<p class="hint">No in-chain upgrades pending - every accessory family you own is at its top tier.</p>`;
+    }
+    if (AT.missing.length) {
+      html += `<h3 style="margin:18px 0 8px;color:var(--med);font-size:15px">NOTABLE ACCESSORIES YOU'RE MISSING (all Ironman-obtainable)</h3>
+      <table class="plain"><tr><th>Accessory</th><th>How to get it</th></tr>` +
+        AT.missing.map(m => `<tr><td>${esc(m.name)}</td><td style="color:var(--dim)">${esc(m.how)}</td></tr>`).join("") +
+        `</table>`;
+    } else {
+      html += `<p class="hint">You own every notable accessory this dashboard tracks. Impressive.</p>`;
+    }
+    html += `</section>`;
+  }
+
+  // ---- Accessories
+  const A = D.accessories;
+  const rarOrder = ["MYTHIC","LEGENDARY","EPIC","RARE","UNCOMMON","COMMON","SPECIAL","VERY SPECIAL"];
+  html += `<section id="accessories"><h2>Accessories</h2>
+  <div class="statrow">
+    <div class="stat"><div class="k">Magical Power</div><div class="v">${fmt(A.magicalPower)}</div></div>
+    <div class="stat"><div class="k">Selected Power</div><div class="v">${cap(A.selectedPower) || "—"}</div></div>
+    <div class="stat"><div class="k">In Bag</div><div class="v">${A.count}</div></div>
+    <div class="stat"><div class="k">Recombobulated</div><div class="v">${A.recombobulated}</div></div>
+    <div class="stat"><div class="k">Enriched</div><div class="v">${A.enriched}</div></div>
+  </div>
+  <div class="hint">${rarOrder.filter(r => A.byRarity[r]).map(r => `<span class="r-${r}">${A.byRarity[r]} ${r.toLowerCase()}</span>`).join(" · ") || "No accessory bag data."}</div>
+  ${A.items.length ? `<details><summary style="cursor:pointer;color:var(--dim)">Show all ${A.items.length} accessories</summary>
+    <table class="plain" style="margin-top:10px"><tr><th>Accessory</th><th>Rarity</th><th>Recombed</th></tr>
+    ${A.items.slice().sort((a,b) => rarOrder.indexOf(a.rarity) - rarOrder.indexOf(b.rarity)).map(i =>
+      `<tr><td>${mc(i.name)}</td><td class="r-${esc(i.rarity || "")}">${esc(i.rarity || "?")}</td><td>${i.recombobulated ? "✔" : ""}</td></tr>`).join("")}
+    </table></details>` : ""}
+  </section>`;
+
+  // ---- Pets
+  const PT = D.pets;
+  html += `<section id="pets"><h2>Pets</h2>
+  <div class="statrow">
+    <div class="stat"><div class="k">Total Pets</div><div class="v">${PT.summary.total}</div></div>
+    <div class="stat"><div class="k">Level 100+</div><div class="v">${PT.summary.maxLevel}</div></div>
+    <div class="stat"><div class="k">Active Pet</div><div class="v" style="font-size:16px">${PT.summary.active ? `<span class="r-${esc(PT.summary.active.tier)}">${titleCase(PT.summary.active.type)}</span> ${PT.summary.active.level}` : "None equipped!"}</div></div>
+  </div>
+  <details ${PT.list.length <= 12 ? "open" : ""}><summary style="cursor:pointer;color:var(--dim)">Show all ${PT.list.length} pets</summary>
+  <table class="plain" style="margin-top:10px"><tr><th>Pet</th><th>Rarity</th><th>Level</th><th>Held Item</th><th></th></tr>
+  ${PT.list.map(p => `<tr><td>${titleCase(p.type)}</td><td class="r-${esc(p.tier)}">${esc(p.tier)}</td><td>${p.level}${p.level >= p.maxLevel ? " ★" : ""}</td><td>${p.heldItem ? titleCase(p.heldItem.replace(/^PET_ITEM_/, "")) : ""}</td><td>${p.active ? "⭐ active" : ""}</td></tr>`).join("")}
+  </table></details></section>`;
+
+  // ---- Minions
+  const M = D.minions || {};
+  html += `<section id="minions"><h2>Minions</h2><div class="statrow">
+    <div class="stat"><div class="k">Minion Slots</div><div class="v">${M.currentSlots ?? "—"} / ${M.maxSlots ?? "—"}</div></div>
+    <div class="stat"><div class="k">Unique Tiers Crafted</div><div class="v">${fmt(M.uniqueTiersCrafted)}</div></div>
+    <div class="stat"><div class="k">Next Slot In</div><div class="v">${M.uniqueTiersToNextSlot != null ? M.uniqueTiersToNextSlot + " tiers" : "—"}</div></div>
+    <div class="stat"><div class="k">Maxed Minion Types</div><div class="v">${M.maxedMinionTypes ?? "—"} / ${M.uniqueMinionTypes ?? "—"}</div></div>
+  </div></section>`;
+
+  html += `<footer>Local dashboard · data from api.elitebot.dev · not affiliated with Hypixel · refresh with "Refresh Dashboard.bat"</footer>`;
+  app.innerHTML = html;
+
+  // filter buttons
+  const fb = document.getElementById("recfilter");
+  fb.addEventListener("click", e => {
+    const b = e.target.closest("button"); if (!b) return;
+    fb.querySelectorAll("button").forEach(x => x.classList.remove("on"));
+    b.classList.add("on");
+    const c = b.dataset.c;
+    document.querySelectorAll("#reclist .rec").forEach(r => {
+      r.style.display = (c === "*" || r.dataset.c === c) ? "" : "none";
+    });
+  });
+}
+try { render(); } catch (e) {
+  app.innerHTML = `<div class="errbox"><h2>Render error</h2><p>${esc(e.stack || e)}</p></div>`;
+}
+</script>
+</body>
+</html>
