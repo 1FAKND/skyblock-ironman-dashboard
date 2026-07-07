@@ -4,7 +4,10 @@ A local, no-install-hassle dashboard for your Hypixel SkyBlock **Ironman** profi
 Run one script, get a browser dashboard with your full profile analyzed and a
 **prioritized, Ironman-friendly to-do list**.
 
-No API key needed. No account. No server. Everything runs on your own machine.
+Nothing to sign up for: it fetches your (already public) profile data over the
+internet from the free [Elite API](https://api.elitebot.dev) - no API key, no
+account, no registration. The dashboard itself is a plain local file; you don't
+host or run any server. You just need an internet connection when you refresh.
 
 ## What it shows
 
