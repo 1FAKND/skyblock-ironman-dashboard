@@ -34,18 +34,22 @@ host or run any server. You just need an internet connection when you refresh.
 
 1. Download this repository (green **Code** button → *Download ZIP*) and unzip it,
    or `git clone` it.
-2. Copy `config.example.json` to `config.json`.
-3. Open `config.json` in any text editor and put your Minecraft username in it:
+2. Run it (see *Daily use* below). **On first run it asks for your Minecraft
+   username** in the console window and remembers it - that's the whole setup.
 
-   ```json
-   {
-     "username": "YourNameHere",
-     "profileName": ""
-   }
-   ```
+If you'd rather set it by hand (or change it later), edit `config.json`:
 
-   Leave `profileName` empty to auto-pick your Ironman profile, or set it to a
-   specific profile's fruit name (e.g. `"Apple"`).
+```json
+{
+  "username": "YourNameHere",
+  "profileName": ""
+}
+```
+
+**Multiple profiles?** The dashboard automatically picks your Ironman profile
+(if you have several, the one you currently have selected in game). To force a
+specific profile, put its fruit name in `profileName` (e.g. `"Apple"`). If you
+have no Ironman profile it falls back to your active profile and says so.
 
 ## Daily use
 

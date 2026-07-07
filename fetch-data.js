@@ -74,9 +74,24 @@ async function main() {
     else fs.writeFileSync(cfgPath, JSON.stringify({ username: "PUT_YOUR_MINECRAFT_NAME_HERE", profileName: "" }, null, 2));
   }
   const cfg = JSON.parse(fs.readFileSync(cfgPath, "utf8").replace(/^﻿/, ""));
-  const username = (cfg.username || "").trim();
+  let username = (cfg.username || "").trim();
   const warnings = [];
 
+  if (!username || /PUT_YOUR/i.test(username)) {
+    // first run: ask in the console window (only when one is attached)
+    if (process.stdin.isTTY && process.stdout.isTTY) {
+      const readline = require("node:readline/promises");
+      const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+      console.log("Welcome! One-time setup:");
+      const answer = (await rl.question("  Enter your Minecraft username: ")).trim();
+      rl.close();
+      if (answer) {
+        username = answer;
+        fs.writeFileSync(cfgPath, JSON.stringify({ username, profileName: cfg.profileName || "" }, null, 2) + "\n", "utf8");
+        console.log(`  Saved to config.json - you won't be asked again.\n`);
+      }
+    }
+  }
   if (!username || /PUT_YOUR/i.test(username)) {
     writeError(
       "No username set",
