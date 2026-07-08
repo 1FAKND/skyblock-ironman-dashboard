@@ -9,6 +9,20 @@ internet from the free [Elite API](https://api.elitebot.dev) - no API key, no
 account, no registration. The dashboard itself is a plain local file; you don't
 host or run any server. You just need an internet connection when you refresh.
 
+## ⬇ Download (one click, no GitHub knowledge needed)
+
+**[Download the dashboard (ZIP)](https://github.com/1FAKND/skyblock-ironman-dashboard/archive/refs/heads/main.zip)**
+
+1. Click the link above - a single ZIP file downloads.
+2. Right-click the ZIP → **Extract All** → put the folder anywhere (Desktop is fine).
+3. Install [Node.js](https://nodejs.org) if you don't have it (free LTS installer,
+   just click Next).
+4. Open the folder and double-click **`Refresh Dashboard.bat`**. It asks for your
+   Minecraft username once, then opens your dashboard.
+
+That's the whole install. If Windows shows a "protected your PC" warning the
+first time (normal for downloaded scripts), click **More info → Run anyway**.
+
 ## What it shows
 
 - **Prioritized To-Do List** — High/Medium/Low recommendations tuned for Ironman
