@@ -35,7 +35,12 @@ first time (normal for downloaded scripts), click **More info → Run anyway**.
   foraging), plus a "housekeeping" list of free wins (duplicate accessories,
   complete sets buried in storage, unused pet upgrade stones…)
 - **Accessory Tracker** — upgrade chains you already qualify for, and notable
-  Ironman-obtainable accessories you're missing, each with its source
+  Ironman-obtainable accessories you're missing, each with its source and its
+  unlock requirement checked against your profile
+- **What to Craft First** — craft targets gate-checked against your actual
+  slayer levels, collection tiers and sack contents (✓/✗ per requirement),
+  grouped into craft-now / gather-materials / locked-behind-a-bottleneck,
+  with reasoning when two crafts compete for the same resource
 - **Pets & Minions** — full pet list, minion slot progress
 
 ## Requirements

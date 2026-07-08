@@ -491,7 +491,7 @@ async function main() {
     let maxIdx = -1;
     for (let i = 0; i < chain.length; i++) if (ownedIds.has(chain[i])) maxIdx = i;
     if (maxIdx >= 0 && maxIdx < chain.length - 1) {
-      accUpgrades.push({ have: nice(chain[maxIdx]), next: nice(chain[maxIdx + 1]), note });
+      accUpgrades.push({ have: nice(chain[maxIdx]), next: nice(chain[maxIdx + 1]), nextId: chain[maxIdx + 1], note });
     }
   }
 
@@ -780,91 +780,184 @@ async function main() {
   }
 
   // =================================================================
-  // CRAFT PRIORITIES - weigh competing uses of the same resource.
-  // Guiding order: permanent accessories > tools you use daily >
-  // armor (gets replaced) > consumables/hoarding.
+  // CRAFT PRIORITIES - gate-checked against YOUR profile.
+  // Recipes/requirements verified against the NotEnoughUpdates item
+  // repo (2026-07-08). Status per target:
+  //   ready  = every gate and material met - craft it now
+  //   gather = unlocked, but short on materials (listed)
+  //   locked = recipe gate not met (slayer level / missing base item)
+  // Weighing order when one resource has competing uses:
+  //   permanent accessories > daily tools > armor (gets replaced) > hoarding
   // =================================================================
 
   const sacks = member.sacks || {};
   const sackOf = (id) => sacks[id] ?? 0;
   const n = (x) => Math.round(x).toLocaleString("en-US");
+  const collTier = (name) => member.collectionTiers?.[name] ?? 0;
+  const slayerLvl = (b) => slayerBosses[b]?.level ?? 0;
+  const countItems = (id) => allItems.filter((i) => i.id === id && i.container !== "museum").length;
+  const potm = member.stats?.mining?.peakOfTheMountainLevel ?? 0;
+
+  // check builders: gate=true means a hard unlock (slayer/collection/base item)
+  const gSlayer = (boss, lvl) => ({ label: `${boss[0].toUpperCase() + boss.slice(1)} Slayer ${lvl} (you: ${slayerLvl(boss)})`, ok: slayerLvl(boss) >= lvl, gate: true });
+  const gColl = (name, tier, label) => ({ label: `${label} collection ${tier} (you: ${collTier(name)})`, ok: collTier(name) >= tier, gate: true });
+  const gBase = (id, label) => ({ label: `${label} (base item)`, ok: ownedIds.has(id), gate: true });
+  const gMat = (need, have, label) => ({ label: `${n(need)}x ${label} (you: ${n(have)})`, ok: have >= need });
+  const gInfo = (label, ok = true) => ({ label, ok });
+
   const craftPriorities = [];
-  const flawlessGems = allItems.filter((i) => /^FLAWLESS_\w+_GEM$/.test(i.id)).length;
-
-  // Blaze rods vs hoarding -> Alchemy XP
-  if (skillLevel("alchemy") < 25 && sackOf("BLAZE_ROD") >= 2000) {
+  const target = (ids, name, checks, why, insteadOf) => {
+    if ((Array.isArray(ids) ? ids : [ids]).some((x) => ownedIds.has(x))) return; // already own it
+    const locked = checks.some((c) => c.gate && !c.ok);
+    const short = checks.some((c) => !c.ok);
     craftPriorities.push({
-      pr: 2, make: "Strength potions (brew your Blaze Rods)", over: "letting blaze rods pile up in your sack",
-      have: `${n(sackOf("BLAZE_ROD"))} Blaze Rods`,
-      why: `Blaze rod brewing is one of the fastest Alchemy XP sources, and your Alchemy (${skillLevel("alchemy")}) is your weakest skill. Alchemy 25+ means longer, stronger potions for every other grind - the rods do more for progression as XP than as items.`,
+      name, why, insteadOf: insteadOf || null,
+      status: locked ? "locked" : short ? "gather" : "ready",
+      checks: checks.map(({ label, ok }) => ({ label, ok })),
     });
-  }
+  };
 
-  // Ender pearls: AOTV -> Ender Artifact -> Day/Night Crystals
-  const pearlBudget = sackOf("ENDER_PEARL") + sackOf("ENCHANTED_ENDER_PEARL") * 160;
-  if (pearlBudget >= 5000) {
-    if (usableIds.has("ASPECT_OF_THE_END") && !usableIds.has("ASPECT_OF_THE_VOID")) {
-      craftPriorities.push({
-        pr: 2, make: "Aspect of the Void", over: "Ender Artifact or other pearl sinks",
-        have: `${n(sackOf("ENDER_PEARL"))} Ender Pearls + ${n(sackOf("ENCHANTED_ENDER_PEARL"))} Enchanted`,
-        why: "The AOTV is a utility item you keep forever (teleport + Ether-warp later) and it upgrades from the AOTE you already carry. Make it first; the Ender Artifact is the very next pearl sink after.",
-      });
-    } else if (!ownedIds.has("ENDER_ARTIFACT") && !ownedIds.has("ENDER_RELIC")) {
-      craftPriorities.push({
-        pr: 2, make: "Ender Artifact", over: "hoarding pearls",
-        have: `${n(pearlBudget)} pearls' worth banked`,
-        why: "Permanent Magical Power and End-zone stats. With your pearl stockpile this is nearly free progression.",
-      });
+  // --- craftable accessories (recipes verified) ---
+  if (ownedIds.has("SEA_CREATURE_RING"))
+    target("SEA_CREATURE_ARTIFACT", "Sea Creature Artifact", [
+      gColl("SPONGE", 8, "Sponge"), gBase("SEA_CREATURE_RING", "Sea Creature Ring"),
+      gMat(64, sackOf("ENCHANTED_SPONGE"), "Enchanted Sponge"),
+    ], "Ring → Artifact is permanent Magical Power and sea-creature stats for your fishing grind.");
+
+  target("AGARIMOO_TALISMAN", "Agarimoo Talisman", [
+    gMat(9, sackOf("AGARIMOO_TONGUE"), "Agarimoo Tongue"),
+  ], "A cheap unique accessory = free Magical Power.");
+
+  if (ownedIds.has("MINERAL_TALISMAN"))
+    target("GLOSSY_MINERAL_TALISMAN", "Glossy Mineral Talisman", [
+      gBase("MINERAL_TALISMAN", "Mineral Talisman"), gMat(16, sackOf("GLOSSY_GEMSTONE"), "Glossy Gemstone"),
+    ], "Direct upgrade to an accessory you already carry.");
+
+  if (ownedIds.has("SPEED_RING"))
+    target("SPEED_ARTIFACT", "Speed Artifact", [
+      gColl("SUGAR_CANE", 8, "Sugar Cane"), gBase("SPEED_RING", "Speed Ring"),
+      gMat(48, sackOf("ENCHANTED_SUGAR_CANE"), "Enchanted Sugar Cane"),
+      gInfo(`${n(sackOf("ENCHANTED_SUGAR"))} Enchanted Sugar banked - converts into Enchanted Sugar Cane`),
+    ], "Permanent +speed; the materials are effectively already in your sacks as Enchanted Sugar.");
+
+  target(["DAY_CRYSTAL"], "Day Crystal", [
+    gColl("QUARTZ", 8, "Nether Quartz"),
+    gMat(164, sackOf("ENCHANTED_QUARTZ") + sackOf("ENCHANTED_QUARTZ_BLOCK") * 160, "Enchanted Quartz worth (4 + 1 block @160)"),
+  ], "Permanent accessory (quartz-based - NOT end stone). Its twin, the Night Crystal, uses the same materials.");
+
+  target(["NIGHT_CRYSTAL"], "Night Crystal", [
+    gColl("QUARTZ", 7, "Nether Quartz"),
+    gMat(164, sackOf("ENCHANTED_QUARTZ") + sackOf("ENCHANTED_QUARTZ_BLOCK") * 160, "Enchanted Quartz worth (4 + 1 block @160)"),
+  ], "Pairs with the Day Crystal; together they also buff stats on your island.");
+
+  if (ownedIds.has("POWER_RING"))
+    target("POWER_ARTIFACT", "Power Artifact", [
+      gColl("GEMSTONE_COLLECTION", 10, "Gemstone"), gBase("POWER_RING", "Power Ring"),
+      gMat(32, sackOf("GEMSTONE_MIXTURE") + countItems("GEMSTONE_MIXTURE"), "Gemstone Mixture (Crystal Hollows craft)"),
+    ], "Permanent Magical Power. Gemstone Mixtures are the real cost - craft them from Crystal Hollows materials.",
+    "spending gemstone materials on armor sockets - armor gets replaced, artifacts don't");
+
+  const emeraldWorth = sackOf("ENCHANTED_EMERALD") + sackOf("ENCHANTED_EMERALD_BLOCK") * 160;
+  target(["ENDER_ARTIFACT", "ENDER_RELIC"], "Ender Artifact", [
+    gInfo("Bought in the Trades menu (unlocked via Emerald collection)"),
+    gMat(312, emeraldWorth, "Enchanted Emerald"),
+  ], "Permanent Magical Power + End-zone stats, and you live in the End right now.",
+  "the Wither Artifact - the SAME 312 Enchanted Emerald trade. Ender first while the End is your grind, Wither second");
+
+  target(["WITHER_ARTIFACT", "WITHER_RELIC"], "Wither Artifact", [
+    gInfo("Bought in the Trades menu (unlocked via Emerald collection)"),
+    gMat(312, emeraldWorth, "Enchanted Emerald"),
+  ], "Second of the two emerald-trade artifacts - queue it after the Ender Artifact.");
+
+  target("BAIT_RING", "Bait Ring", [
+    gColl("INK_SACK", 8, "Ink Sac"), gMat(288, sackOf("ENCHANTED_INK_SACK"), "Enchanted Ink Sac"),
+  ], "Fishing accessory - bait savings add up over thousands of casts.");
+
+  if (slayerLvl("enderman") >= 2 && !ownedIds.has("SOULFLOW_SUPERCELL"))
+    target(["SOULFLOW_PILE", "SOULFLOW_BATTERY"], "Soulflow Pile (→ Battery → Supercell)", [
+      gSlayer("enderman", 2), gMat(90, sackOf("NULL_SPHERE"), "Null Sphere"),
+    ], "First step of the soulflow chain. Long-term the same soulflow economy also feeds the Overflux Capacitor power orb - orb before passive accessories when you must choose.");
+
+  // --- locked-behind-slayer targets (listed so you can see the bottleneck) ---
+  if (ownedIds.has("ZOMBIE_RING"))
+    target("ZOMBIE_ARTIFACT", "Zombie Artifact", [
+      gSlayer("zombie", 7), gBase("ZOMBIE_RING", "Zombie Ring"),
+      gMat(48, sackOf("REVENANT_VISCERA"), "Revenant Viscera"),
+      gMat(32, sackOf("ENCHANTED_IRON"), "Enchanted Iron"),
+      gMat(16, sackOf("ENCHANTED_DIAMOND"), "Enchanted Diamond"),
+    ], "The bottleneck is Zombie Slayer 7 - one level away. The viscera will come from those same T4 bosses.");
+
+  if (ownedIds.has("SPIDER_RING"))
+    target("SPIDER_ARTIFACT", "Spider Artifact", [
+      gSlayer("spider", 6), gBase("SPIDER_RING", "Spider Ring"),
+      gMat(32, sackOf("TARANTULA_SILK"), "Tarantula Silk"),
+      gMat(32, sackOf("ENCHANTED_EMERALD"), "Enchanted Emerald"),
+    ], "Blocked by Spider Slayer 6 - one level away. Silk drops from the same bosses that level you.");
+
+  target("TARANTULA_TALISMAN", "Tarantula Talisman", [
+    gSlayer("spider", 6), gInfo("Drops from T3+ Tarantula bosses"),
+  ], "Also gated behind Spider Slayer 6 - one push unlocks both spider accessories.");
+
+  if (usableIds.has("ASPECT_OF_THE_END"))
+    target("ASPECT_OF_THE_VOID", "Aspect of the Void", [
+      gSlayer("enderman", 6), gBase("ASPECT_OF_THE_END", "Aspect of the End"),
+      gMat(4096, sackOf("NULL_SPHERE"), "Null Sphere (as 32 Null Ovoids)"),
+      gMat(1024, sackOf("ENCHANTED_OBSIDIAN"), "Enchanted Obsidian"),
+    ], "A long-term goal, not a quick craft: Enderman Slayer 6 gates the recipe and the Null Ovoid cost is steep. Your Voidgloom push works toward it automatically.");
+
+  if (ownedIds.has("RED_CLAW_RING"))
+    target("RED_CLAW_ARTIFACT", "Red Claw Artifact", [
+      gSlayer("wolf", 5), gBase("RED_CLAW_RING", "Red Claw Ring"),
+      gMat(64, sackOf("GOLDEN_TOOTH"), "Golden Tooth (drop from Sven T3+)"),
+    ], "You cleared the Wolf Slayer 5 gate long ago - Golden Teeth are the remaining cost.",
+    "the Wolf Ring - both compete for Golden Teeth; the artifact is the bigger Magical Power jump per tooth");
+
+  if (ownedIds.has("TITANIUM_ARTIFACT"))
+    target("TITANIUM_RELIC", "Titanium Relic", [
+      gInfo(`HotM 5 required (your Peak of the Mountain: ${potm})`, potm >= 5),
+      gBase("TITANIUM_ARTIFACT", "Titanium Artifact"),
+      gMat(20, sackOf("REFINED_TITANIUM") + countItems("REFINED_TITANIUM"), "Refined Titanium (approx.)"),
+    ], "Top of the titanium chain; your drill line is already done, so titanium has no better use.");
+
+  if (usableIds.has("SWORD_OF_REVELATIONS"))
+    target("DAEDALUS_AXE", "Daedalus Axe (Diana weapon)", [
+      gBase("SWORD_OF_REVELATIONS", "Sword of Revelations"),
+      gMat(2, countItems("DAEDALUS_STICK"), "Daedalus Stick (drops from Minos Champions/Inquisitors)"),
+      gMat(48, sackOf("ENCHANTED_GOLD_BLOCK"), "Enchanted Gold Block"),
+      gInfo("Champions/Inquisitors need an Epic/Legendary Griffin to spawn"),
+    ], "The event weapon. Its real bottleneck is your Griffin rarity - upgrade the pet first and the sticks follow.");
+
+  target("JERRY_TALISMAN_GOLDEN", "Golden Jerry Talisman", [
+    gBase("JERRY_TALISMAN_PURPLE", "Purple Jerry Talisman"),
+    gMat(5, countItems("JERRY_TALISMAN_PURPLE"), "Purple Jerry Talisman copies"),
+  ], "Needs five Purple Jerry Talismans total - stack them up across Jerry's Workshop events.");
+
+  target("TREASURE_RING", "Treasure Ring", [
+    gBase("TREASURE_TALISMAN", "Treasure Talisman"),
+    gMat(8, countItems("TREASURE_TALISMAN"), "Treasure Talisman copies (dungeon chest drops)"),
+  ], "Eight Treasure Talismans fuse into the ring - a slow dungeon-chest collection that happens alongside your Catacombs push.");
+
+  const statusRank = { ready: 0, gather: 1, locked: 2 };
+  craftPriorities.sort((a, b) => statusRank[a.status] - statusRank[b.status]);
+
+  for (const c of craftPriorities) {
+    if (c.status === "ready") {
+      rec(2, "Crafting", `Craft now: ${c.name} - all requirements met`, c.why, 'Every gate and material is checked green - see "What to Craft First".');
     }
   }
 
-  // Enchanted End Stone -> Day/Night Crystals
-  if (sackOf("ENCHANTED_ENDSTONE") >= 80 && (!ownedIds.has("DAY_CRYSTAL") || !ownedIds.has("NIGHT_CRYSTAL"))) {
-    craftPriorities.push({
-      pr: 2, make: "Day Crystal + Night Crystal", over: "other End Stone uses",
-      have: `${n(sackOf("ENCHANTED_ENDSTONE"))} Enchanted End Stone`,
-      why: "Two permanent accessories from a resource you're already sitting on. Accessories never get replaced - armor does - so they win ties for the same material.",
-    });
-  }
-
-  // Golden teeth: Red Claw Artifact first, Wolf Ring second
-  if (ownedIds.has("RED_CLAW_RING") && !ownedIds.has("RED_CLAW_ARTIFACT") && (slayerBosses.wolf?.level ?? 0) >= 5) {
-    craftPriorities.push({
-      pr: 3, make: "Red Claw Artifact", over: "Wolf Ring (both compete for Golden Teeth)",
-      have: `${n(sackOf("GOLDEN_TOOTH"))} Golden Teeth, ${n(sackOf("WOLF_TOOTH"))} Wolf Teeth`,
-      why: "Ring → Artifact is a bigger Magical Power jump than Talisman → Ring, so when two crafts want the same teeth, feed the artifact first. Sven T3+ bosses drop the teeth you're short on.",
-    });
-  }
-
-  // Soulflow: power orb before soulflow accessories
-  if ((slayerBosses.enderman?.level ?? 0) >= 3 && !ownedIds.has("OVERFLUX_CAPACITOR") && !ownedIds.has("OVERFLUX_POWER_ORB")) {
-    craftPriorities.push({
-      pr: 2, make: "Overflux Capacitor (power orb)", over: "Soulflow accessory chain",
-      have: "Soulflow income from your Voidgloom grind",
-      why: "Both are built from Voidgloom soulflow. The Overflux orb buffs your whole combat kit in every fight (dungeons, slayers, events); the Soulflow accessories are good but passive. Orb first, accessories with the surplus.",
-    });
-  }
-
-  // Flawless gems: Power Artifact over armor sockets
-  if (flawlessGems > 0 && ownedIds.has("POWER_RING") && !ownedIds.has("POWER_ARTIFACT")) {
-    craftPriorities.push({
-      pr: 2, make: "Power Artifact", over: "socketing flawless gems into armor",
-      have: `${flawlessGems} flawless gemstone(s) in storage`,
-      why: "Armor gets replaced as you progress and the gems don't always come with it - the Power Artifact is permanent Magical Power. Socket armor with the leftovers.",
-    });
-  }
-
-  // Refined titanium: relic once the drill is done
-  if (usableIds.has("TITANIUM_DRILL_4") && ownedIds.has("TITANIUM_ARTIFACT") && !ownedIds.has("TITANIUM_RELIC")) {
-    craftPriorities.push({
-      pr: 3, make: "Titanium Relic", over: "further drill spending",
-      have: "Titanium Drill DR-X655 already built",
-      why: "Your drill line is at its refined-titanium peak, so titanium's best remaining use is the Relic - the top of the titanium accessory chain.",
-    });
-  }
-
-  for (const c of craftPriorities) {
-    if (c.pr <= 2) rec(2, "Crafting", `Craft first: ${c.make}`, `${c.why}`, `You have: ${c.have}. See the "What to Craft First" section.`);
+  // annotate the accessory tracker with the same verified gates
+  const TARGET_GATES = {
+    ZOMBIE_ARTIFACT: gSlayer("zombie", 7), SPIDER_ARTIFACT: gSlayer("spider", 6),
+    RED_CLAW_ARTIFACT: gSlayer("wolf", 5), SEA_CREATURE_ARTIFACT: gColl("SPONGE", 8, "Sponge"),
+    SPEED_ARTIFACT: gColl("SUGAR_CANE", 8, "Sugar Cane"), POWER_ARTIFACT: gColl("GEMSTONE_COLLECTION", 10, "Gemstone"),
+    TITANIUM_RELIC: gInfo("HotM 5", potm >= 5), TREASURE_RING: gInfo("8x Treasure Talisman", countItems("TREASURE_TALISMAN") >= 8),
+    JERRY_TALISMAN_GOLDEN: gInfo("5x Purple Jerry Talisman", countItems("JERRY_TALISMAN_PURPLE") >= 5),
+    SOULFLOW_BATTERY: gSlayer("enderman", 2), SOULFLOW_SUPERCELL: gSlayer("enderman", 2),
+  };
+  for (const u of accUpgrades) {
+    const g = TARGET_GATES[u.nextId];
+    if (g) { u.requires = g.label; u.blocked = !g.ok; }
   }
 
   // ---- fold tracker results into recommendations ----

@@ -227,24 +227,33 @@ function render() {
     ${Object.entries(dg.classLevels || {}).map(([c, v]) => `<div class="card"><div class="name"><span>${cap(c)}</span><span class="lvl">${v.level}</span></div>${bar(v.progress)}</div>`).join("")}
   </div></section>`;
 
-  // ---- What to Craft First
+  // ---- What to Craft First (gate-checked)
   if (D.craftPriorities && D.craftPriorities.length) {
+    const groups = [
+      ["ready", "✅ CRAFT NOW - every requirement met", 3],
+      ["gather", "🧺 UNLOCKED - gather the materials", 2],
+      ["locked", "🔒 LOCKED - the bottleneck is listed in red", 1],
+    ];
     html += `<section id="crafts"><h2>What to Craft First</h2>
-    <div class="hint">When one resource has competing uses, this weighs them. Rule of thumb: permanent accessories &gt; tools you use daily &gt; armor (gets replaced) &gt; hoarding.</div>`;
-    for (const c of D.craftPriorities) {
-      html += `<div class="rec p${c.pr}">
-        <div class="rhead">
-          <span class="prio">${["", "HIGH", "MAKE THIS", "THEN THIS"][c.pr]}</span>
-          <span class="title">${esc(c.make)}</span>
-          <span class="cat">instead of ${esc(c.over)}</span>
-        </div>
-        <div class="why">${esc(c.why)}</div>
-        <div class="how"><b>You have:</b> ${esc(c.have)}</div>
-      </div>`;
+    <div class="hint">Requirements verified against the community item database and checked against <b>your</b> profile: ✓ = met, ✗ = your bottleneck. When one resource has competing uses: permanent accessories &gt; daily tools &gt; armor (gets replaced) &gt; hoarding.</div>`;
+    for (const [status, heading, pr] of groups) {
+      const items = D.craftPriorities.filter(c => c.status === status);
+      if (!items.length) continue;
+      html += `<h3 style="margin:16px 0 8px;color:var(--dim);font-size:14px">${esc(heading)}</h3>`;
+      for (const c of items) {
+        html += `<div class="rec p${pr}">
+          <div class="rhead"><span class="title">${esc(c.name)}</span></div>
+          <div class="why">${esc(c.why)}</div>
+          <div style="margin-top:6px;font-size:13.5px">${c.checks.map(ch =>
+            `<div style="color:${ch.ok ? "var(--green)" : "var(--red)"}">${ch.ok ? "✓" : "✗"} <span style="color:${ch.ok ? "var(--dim)" : "var(--red)"}">${esc(ch.label)}</span></div>`).join("")}
+          </div>
+          ${c.insteadOf ? `<div class="how" style="margin-top:6px"><b>Instead of:</b> ${esc(c.insteadOf)}</div>` : ""}
+        </div>`;
+      }
     }
     html += `</section>`;
   } else if (D.craftPriorities) {
-    html += `<section id="crafts"><h2>What to Craft First</h2><p class="hint">No competing resource decisions detected right now - check back after your stockpiles grow.</p></section>`;
+    html += `<section id="crafts"><h2>What to Craft First</h2><p class="hint">Nothing to weigh right now - you own every tracked craft target.</p></section>`;
   }
 
   // ---- Events
@@ -308,9 +317,9 @@ function render() {
   if (AT) {
     html += `<section id="acctracker"><h2>Accessory Tracker</h2>`;
     if (AT.upgrades.length) {
-      html += `<h3 style="margin:8px 0;color:var(--green);font-size:15px">UPGRADES READY - YOU OWN THE LOWER TIER</h3>
-      <table class="plain"><tr><th>You own</th><th>Upgrade to</th><th>Materials</th></tr>` +
-        AT.upgrades.map(u => `<tr><td>${esc(u.have)}</td><td style="color:var(--green)">${esc(u.next)}</td><td style="color:var(--dim)">${esc(u.note)}</td></tr>`).join("") +
+      html += `<h3 style="margin:8px 0;color:var(--green);font-size:15px">UPGRADE CHAINS - YOU OWN THE LOWER TIER</h3>
+      <table class="plain"><tr><th>You own</th><th>Upgrade to</th><th>Materials</th><th>Unlock requirement</th></tr>` +
+        AT.upgrades.map(u => `<tr><td>${esc(u.have)}</td><td style="color:${u.blocked ? "var(--dim)" : "var(--green)"}">${esc(u.next)}</td><td style="color:var(--dim)">${esc(u.note)}</td><td style="color:${u.blocked ? "var(--red)" : "var(--green)"}">${u.requires ? `${u.blocked ? "✗" : "✓"} ${esc(u.requires)}` : "✓ none"}</td></tr>`).join("") +
         `</table>`;
     } else {
       html += `<p class="hint">No in-chain upgrades pending - every accessory family you own is at its top tier.</p>`;
