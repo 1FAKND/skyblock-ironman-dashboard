@@ -61,6 +61,18 @@ opens the dashboard in your browser.
 Re-run whenever you want fresh data. The analysis rebuilds itself from scratch each
 time, so completed recommendations disappear automatically.
 
+## Portable / USB-stick mode
+
+The whole dashboard is self-contained - copy the folder to a USB stick and your
+config and data travel with it. Viewing the dashboard works **offline** (it
+renders your last refresh); you only need internet to refresh.
+
+To make it run on computers that don't have Node.js installed: download the
+Windows Binary (.zip) from [nodejs.org/en/download](https://nodejs.org/en/download),
+unzip it, and copy just the `node.exe` file into the dashboard folder. The
+refresh script automatically uses a `node.exe` sitting next to it before looking
+for an installed one.
+
 ## How it works
 
 - `fetch-data.js` pulls your profile from the community-run
