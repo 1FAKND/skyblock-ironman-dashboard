@@ -779,6 +779,94 @@ async function main() {
     }
   }
 
+  // =================================================================
+  // CRAFT PRIORITIES - weigh competing uses of the same resource.
+  // Guiding order: permanent accessories > tools you use daily >
+  // armor (gets replaced) > consumables/hoarding.
+  // =================================================================
+
+  const sacks = member.sacks || {};
+  const sackOf = (id) => sacks[id] ?? 0;
+  const n = (x) => Math.round(x).toLocaleString("en-US");
+  const craftPriorities = [];
+  const flawlessGems = allItems.filter((i) => /^FLAWLESS_\w+_GEM$/.test(i.id)).length;
+
+  // Blaze rods vs hoarding -> Alchemy XP
+  if (skillLevel("alchemy") < 25 && sackOf("BLAZE_ROD") >= 2000) {
+    craftPriorities.push({
+      pr: 2, make: "Strength potions (brew your Blaze Rods)", over: "letting blaze rods pile up in your sack",
+      have: `${n(sackOf("BLAZE_ROD"))} Blaze Rods`,
+      why: `Blaze rod brewing is one of the fastest Alchemy XP sources, and your Alchemy (${skillLevel("alchemy")}) is your weakest skill. Alchemy 25+ means longer, stronger potions for every other grind - the rods do more for progression as XP than as items.`,
+    });
+  }
+
+  // Ender pearls: AOTV -> Ender Artifact -> Day/Night Crystals
+  const pearlBudget = sackOf("ENDER_PEARL") + sackOf("ENCHANTED_ENDER_PEARL") * 160;
+  if (pearlBudget >= 5000) {
+    if (usableIds.has("ASPECT_OF_THE_END") && !usableIds.has("ASPECT_OF_THE_VOID")) {
+      craftPriorities.push({
+        pr: 2, make: "Aspect of the Void", over: "Ender Artifact or other pearl sinks",
+        have: `${n(sackOf("ENDER_PEARL"))} Ender Pearls + ${n(sackOf("ENCHANTED_ENDER_PEARL"))} Enchanted`,
+        why: "The AOTV is a utility item you keep forever (teleport + Ether-warp later) and it upgrades from the AOTE you already carry. Make it first; the Ender Artifact is the very next pearl sink after.",
+      });
+    } else if (!ownedIds.has("ENDER_ARTIFACT") && !ownedIds.has("ENDER_RELIC")) {
+      craftPriorities.push({
+        pr: 2, make: "Ender Artifact", over: "hoarding pearls",
+        have: `${n(pearlBudget)} pearls' worth banked`,
+        why: "Permanent Magical Power and End-zone stats. With your pearl stockpile this is nearly free progression.",
+      });
+    }
+  }
+
+  // Enchanted End Stone -> Day/Night Crystals
+  if (sackOf("ENCHANTED_ENDSTONE") >= 80 && (!ownedIds.has("DAY_CRYSTAL") || !ownedIds.has("NIGHT_CRYSTAL"))) {
+    craftPriorities.push({
+      pr: 2, make: "Day Crystal + Night Crystal", over: "other End Stone uses",
+      have: `${n(sackOf("ENCHANTED_ENDSTONE"))} Enchanted End Stone`,
+      why: "Two permanent accessories from a resource you're already sitting on. Accessories never get replaced - armor does - so they win ties for the same material.",
+    });
+  }
+
+  // Golden teeth: Red Claw Artifact first, Wolf Ring second
+  if (ownedIds.has("RED_CLAW_RING") && !ownedIds.has("RED_CLAW_ARTIFACT") && (slayerBosses.wolf?.level ?? 0) >= 5) {
+    craftPriorities.push({
+      pr: 3, make: "Red Claw Artifact", over: "Wolf Ring (both compete for Golden Teeth)",
+      have: `${n(sackOf("GOLDEN_TOOTH"))} Golden Teeth, ${n(sackOf("WOLF_TOOTH"))} Wolf Teeth`,
+      why: "Ring → Artifact is a bigger Magical Power jump than Talisman → Ring, so when two crafts want the same teeth, feed the artifact first. Sven T3+ bosses drop the teeth you're short on.",
+    });
+  }
+
+  // Soulflow: power orb before soulflow accessories
+  if ((slayerBosses.enderman?.level ?? 0) >= 3 && !ownedIds.has("OVERFLUX_CAPACITOR") && !ownedIds.has("OVERFLUX_POWER_ORB")) {
+    craftPriorities.push({
+      pr: 2, make: "Overflux Capacitor (power orb)", over: "Soulflow accessory chain",
+      have: "Soulflow income from your Voidgloom grind",
+      why: "Both are built from Voidgloom soulflow. The Overflux orb buffs your whole combat kit in every fight (dungeons, slayers, events); the Soulflow accessories are good but passive. Orb first, accessories with the surplus.",
+    });
+  }
+
+  // Flawless gems: Power Artifact over armor sockets
+  if (flawlessGems > 0 && ownedIds.has("POWER_RING") && !ownedIds.has("POWER_ARTIFACT")) {
+    craftPriorities.push({
+      pr: 2, make: "Power Artifact", over: "socketing flawless gems into armor",
+      have: `${flawlessGems} flawless gemstone(s) in storage`,
+      why: "Armor gets replaced as you progress and the gems don't always come with it - the Power Artifact is permanent Magical Power. Socket armor with the leftovers.",
+    });
+  }
+
+  // Refined titanium: relic once the drill is done
+  if (usableIds.has("TITANIUM_DRILL_4") && ownedIds.has("TITANIUM_ARTIFACT") && !ownedIds.has("TITANIUM_RELIC")) {
+    craftPriorities.push({
+      pr: 3, make: "Titanium Relic", over: "further drill spending",
+      have: "Titanium Drill DR-X655 already built",
+      why: "Your drill line is at its refined-titanium peak, so titanium's best remaining use is the Relic - the top of the titanium accessory chain.",
+    });
+  }
+
+  for (const c of craftPriorities) {
+    if (c.pr <= 2) rec(2, "Crafting", `Craft first: ${c.make}`, `${c.why}`, `You have: ${c.have}. See the "What to Craft First" section.`);
+  }
+
   // ---- fold tracker results into recommendations ----
   if (accUpgrades.length) {
     rec(2, "Accessories", `${accUpgrades.length} accessory upgrade(s) ready to work on`,
@@ -802,7 +890,7 @@ async function main() {
   }
 
   // ---------------- sort recommendations ----------------
-  const catOrder = { Setup: 0, Skills: 1, Slayers: 2, Dungeons: 3, Gear: 4, Accessories: 5, Pets: 6, Minions: 7, Events: 8 };
+  const catOrder = { Setup: 0, Skills: 1, Slayers: 2, Dungeons: 3, Gear: 4, Crafting: 5, Accessories: 6, Pets: 7, Minions: 8, Events: 9 };
   recs.sort((a, b) => a.priority - b.priority || (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9));
 
   // =================================================================
@@ -897,6 +985,7 @@ async function main() {
       missing: accMissing,
     },
     events,
+    craftPriorities,
     recommendations: recs,
     error: null,
   };

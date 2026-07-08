@@ -168,7 +168,7 @@ function render() {
 
   <nav class="toc">
     <a href="#recs">✅ To-Do</a><a href="#skills">Skills</a><a href="#slayers">Slayers</a><a href="#dungeons">Dungeons</a>
-    <a href="#events">Events</a><a href="#gear">Gear</a><a href="#gearreview">Gear by Activity</a><a href="#acctracker">Accessory Tracker</a>
+    <a href="#crafts">Craft First</a><a href="#events">Events</a><a href="#gear">Gear</a><a href="#gearreview">Gear by Activity</a><a href="#acctracker">Accessory Tracker</a>
     <a href="#accessories">Accessories</a><a href="#pets">Pets</a><a href="#minions">Minions</a>
   </nav>`;
 
@@ -226,6 +226,26 @@ function render() {
     <div class="card"><div class="name"><span>Catacombs</span><span class="lvl">${dg.catacombsLevel}</span></div>${bar(dg.catacombsProgress)}<div class="sub">Selected class: ${cap(dg.selectedClass) || "—"} · Secrets found: ${fmt(dg.secretsFound)} · Class avg: ${dg.classAverage ? dg.classAverage.toFixed(1) : "—"}</div></div>
     ${Object.entries(dg.classLevels || {}).map(([c, v]) => `<div class="card"><div class="name"><span>${cap(c)}</span><span class="lvl">${v.level}</span></div>${bar(v.progress)}</div>`).join("")}
   </div></section>`;
+
+  // ---- What to Craft First
+  if (D.craftPriorities && D.craftPriorities.length) {
+    html += `<section id="crafts"><h2>What to Craft First</h2>
+    <div class="hint">When one resource has competing uses, this weighs them. Rule of thumb: permanent accessories &gt; tools you use daily &gt; armor (gets replaced) &gt; hoarding.</div>`;
+    for (const c of D.craftPriorities) {
+      html += `<div class="rec p${c.pr}">
+        <div class="rhead">
+          <span class="prio">${["", "HIGH", "MAKE THIS", "THEN THIS"][c.pr]}</span>
+          <span class="title">${esc(c.make)}</span>
+          <span class="cat">instead of ${esc(c.over)}</span>
+        </div>
+        <div class="why">${esc(c.why)}</div>
+        <div class="how"><b>You have:</b> ${esc(c.have)}</div>
+      </div>`;
+    }
+    html += `</section>`;
+  } else if (D.craftPriorities) {
+    html += `<section id="crafts"><h2>What to Craft First</h2><p class="hint">No competing resource decisions detected right now - check back after your stockpiles grow.</p></section>`;
+  }
 
   // ---- Events
   if (D.events && D.events.length) {
