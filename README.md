@@ -9,7 +9,7 @@ internet from the free [Elite API](https://api.elitebot.dev) - no API key, no
 account, no registration. The dashboard itself is a plain local file; you don't
 host or run any server. You just need an internet connection when you refresh.
 
-## ⬇ Download (one click, no GitHub knowledge needed)
+## ⬇ Download
 
 **[Download the dashboard (ZIP)](https://github.com/1FAKND/skyblock-ironman-dashboard/archive/refs/heads/main.zip)**
 
