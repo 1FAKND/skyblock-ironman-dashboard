@@ -624,6 +624,161 @@ async function main() {
       "Craftable with Summoning Eyes from zealot grinding in the End.");
   }
 
+  // =================================================================
+  // EVENTS (Diana, Jacob, Hoppity, Spooky, Winter)
+  // =================================================================
+
+  const playerStats = member.stats?.playerStats || {};
+  const events = [];
+  const TIER_ORDER = ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"];
+
+  // ---- Mythological Ritual (Diana) ----
+  {
+    const my = playerStats.mythos || {};
+    const griffin = petByType["GRIFFIN"] || null;
+    const kills = [
+      ["Minos Hunter", my.killsMinosHunter], ["Siamese Lynx", my.killsSiameseLynx],
+      ["Gaia Construct", my.killsGaiaConstruct], ["Minotaur", my.killsMinotaur],
+      ["Minos Champion", my.killsMinosChampion], ["Minos Inquisitor", my.killsMinosInquisitor],
+    ].map(([k, v]) => [k, v ?? 0]);
+    const DIANA_ITEMS = { DAEDALUS_AXE: "Daedalus Axe", ANCESTRAL_SPADE: "Ancestral Spade", ANTIQUE_REMEDIES: "Antique Remedies", DWARF_TURTLE_SHELMET: "Dwarf Turtle Shelmet", CROCHET_TIGER_PLUSHIE: "Crochet Tiger Plushie", MINOS_RELIC: "Minos Relic", GRIFFIN_FEATHER: "Griffin Feather(s)", ANCIENT_CLAW: "Ancient Claw(s)", ENCHANTED_ANCIENT_CLAW: "Enchanted Ancient Claw(s)" };
+    const haveItems = Object.entries(DIANA_ITEMS).filter(([id]) => ownedIds.has(id)).map(([, label]) => label);
+    const todo = [];
+    const gTier = griffin ? TIER_ORDER.indexOf(griffin.tier) : -1;
+    if (!griffin) {
+      todo.push({ pr: 1, text: "Get a Griffin pet - it's the heart of the whole event (burrow quality scales with its rarity)." });
+    } else if (gTier < TIER_ORDER.indexOf("LEGENDARY")) {
+      const unlocks = gTier < TIER_ORDER.indexOf("EPIC") ? "Epic unlocks Minos Champions; Legendary unlocks Minos Inquisitors (the Chimera book source)" : "Legendary unlocks Minos Inquisitors - the Chimera book source";
+      todo.push({ pr: 1, text: `Upgrade your ${griffin.tier[0] + griffin.tier.slice(1).toLowerCase()} Griffin - ${unlocks}. Griffin Feathers (and any upgrade stones you have banked) are the materials.` });
+    }
+    if ((my.killsMinosInquisitor ?? 0) === 0 && (my.burrowsDugNext?.total ?? 0) > 100) {
+      todo.push({ pr: 2, text: "You've never killed a Minos Inquisitor - they drop Chimera books and top-tier Diana loot, and only appear with a Legendary Griffin." });
+    }
+    if (!ownedIds.has("DAEDALUS_AXE") && (my.burrowsDugNext?.total ?? 0) > 0) {
+      todo.push({ pr: 2, text: "Work toward a Daedalus Axe - the event's dedicated weapon; materials come from higher-tier mythological creatures." });
+    }
+    const missingPetItems = ["DWARF_TURTLE_SHELMET", "CROCHET_TIGER_PLUSHIE", "MINOS_RELIC"].filter((id) => !ownedIds.has(id));
+    if (missingPetItems.length && (my.burrowsDugNext?.total ?? 0) > 0) {
+      todo.push({ pr: 3, text: `Diana-exclusive pet items you're missing: ${missingPetItems.map((id) => DIANA_ITEMS[id]).join(", ")} - all drop from event mobs/burrows.` });
+    }
+    events.push({
+      name: "Mythological Ritual (Diana)",
+      active: "Runs while Diana is mayor - burrow hunting on the Hub island",
+      stats: [
+        ["Griffin pet", griffin ? `${griffin.tier[0] + griffin.tier.slice(1).toLowerCase()} lvl ${griffin.level}` : "none"],
+        ["Burrows dug", (my.burrowsDugNext?.total ?? 0).toLocaleString("en-US")],
+        ["Treasure burrows", (my.burrowsDugTreasure?.total ?? 0).toLocaleString("en-US")],
+        ...kills.map(([k, v]) => [k + " kills", v.toLocaleString("en-US")]),
+      ],
+      have: haveItems,
+      todo,
+    });
+  }
+
+  // ---- Jacob's Farming Contests ----
+  {
+    const j = member.jacob || {};
+    const med = j.medals || {}, earned = j.earnedMedals || {}, perks = j.perks || {};
+    const todo = [];
+    if (perks.personalBests === false && (earned.gold ?? 0) > 0) {
+      todo.push({ pr: 2, text: "Unlock the Personal Bests perk in Anita's shop - you have unspent gold medals and it's a permanent buff." });
+    }
+    if ((perks.doubleDrops ?? 0) < 15) {
+      todo.push({ pr: 2, text: `Double Drops perk is ${perks.doubleDrops ?? 0}/15 - spend gold medals at Anita to max it (+${(15 - (perks.doubleDrops ?? 0)) * 2}% more crop drops available).` });
+    }
+    if ((med.bronze ?? 0) + (med.silver ?? 0) + (med.gold ?? 0) > 10) {
+      todo.push({ pr: 3, text: `You're sitting on ${med.bronze ?? 0} bronze / ${med.silver ?? 0} silver / ${med.gold ?? 0} gold unspent medals - browse Anita's shop.` });
+    }
+    events.push({
+      name: "Jacob's Farming Contests",
+      active: "Every 3 SkyBlock days, year-round",
+      stats: [
+        ["Contests entered", (j.participations ?? 0).toLocaleString("en-US")],
+        ["Gold medals earned", (earned.gold ?? 0) + (earned.platinum ?? 0) + (earned.diamond ?? 0)],
+        ["Diamond medals", earned.diamond ?? 0],
+        ["Unspent medals", `${med.bronze ?? 0}🥉 ${med.silver ?? 0}🥈 ${med.gold ?? 0}🥇`],
+        ["Double Drops perk", `${perks.doubleDrops ?? 0}/15`],
+        ["Farming level cap bought", `+${perks.levelCap ?? 0}`],
+      ],
+      have: [],
+      todo,
+    });
+  }
+
+  // ---- Hoppity's Hunt (Chocolate Factory) ----
+  if (member.chocolateFactory && (member.chocolateFactory.totalChocolate ?? 0) > 0) {
+    const c = member.chocolateFactory;
+    const u = c.uniqueRabbits || {};
+    const uniques = Object.values(u).reduce((a, b) => a + (b || 0), 0);
+    const todo = [];
+    if (!c.unlockedZorro) todo.push({ pr: 3, text: "Zorro is still locked - it requires progress on the rarest rabbit tiers." });
+    if ((u.divine ?? 0) === 0) todo.push({ pr: 3, text: "No Divine rabbits yet - keep hunting eggs each Hoppity's Hunt for the rarest tier." });
+    events.push({
+      name: "Hoppity's Hunt (Chocolate Factory)",
+      active: "Seasonal (SkyBlock spring) - factory produces year-round",
+      stats: [
+        ["Prestige", c.prestige ?? 0],
+        ["All-time chocolate", c.totalChocolate >= 1e9 ? (c.totalChocolate / 1e9).toFixed(1) + "B" : Math.round(c.totalChocolate).toLocaleString("en-US")],
+        ["Unique rabbits", uniques],
+        ["Mythic / Divine rabbits", `${u.mythic ?? 0} / ${u.divine ?? 0}`],
+        ["Zorro unlocked", c.unlockedZorro ? "yes" : "no"],
+      ],
+      have: [],
+      todo,
+    });
+  }
+
+  // ---- Spooky Festival ----
+  {
+    const candyIdx = ["CANDY_TALISMAN", "CANDY_RING", "CANDY_ARTIFACT", "CANDY_RELIC"].reduce((b, id, i) => (ownedIds.has(id) ? i : b), -1);
+    const batIdx = ["BAT_TALISMAN", "BAT_RING", "BAT_ARTIFACT"].reduce((b, id, i) => (ownedIds.has(id) ? i : b), -1);
+    const spookSet = ["GREAT_SPOOK_HELMET", "GREAT_SPOOK_CHESTPLATE", "GREAT_SPOOK_LEGGINGS", "GREAT_SPOOK_BOOTS"].filter((id) => ownedIds.has(id)).length;
+    const have = [];
+    if (spookSet) have.push(`Great Spook armor (${spookSet}/4)`);
+    if (candyIdx >= 0) have.push(nice(["CANDY_TALISMAN", "CANDY_RING", "CANDY_ARTIFACT", "CANDY_RELIC"][candyIdx]));
+    if (batIdx >= 0) have.push(nice(["BAT_TALISMAN", "BAT_RING", "BAT_ARTIFACT"][batIdx]));
+    const todo = [];
+    if (candyIdx >= 0 && candyIdx < 3) todo.push({ pr: 3, text: "Upgrade your candy accessory with Purple Candy during the next Spooky Festival." });
+    if (batIdx >= 0 && batIdx < 2) todo.push({ pr: 3, text: "Upgrade your bat accessory - Spooky Festival bat drops." });
+    if (spookSet > 0 && spookSet < 4) todo.push({ pr: 3, text: `Complete the Great Spook set (${spookSet}/4) during the Great Spook (spooky season).` });
+    events.push({
+      name: "Spooky Festival",
+      active: "Seasonal (SkyBlock autumn)",
+      stats: [["Bats spawned (lifetime)", playerStats.spooky?.bats_spawned?.total ?? 0]],
+      have,
+      todo,
+    });
+  }
+
+  // ---- Jerry's Workshop (Winter) ----
+  {
+    const jerryIdx = ["JERRY_TALISMAN_GREEN", "JERRY_TALISMAN_BLUE", "JERRY_TALISMAN_PURPLE", "JERRY_TALISMAN_GOLDEN"].reduce((b, id, i) => (ownedIds.has(id) ? i : b), -1);
+    const yeti = petByType["BABY_YETI"] || null;
+    const have = [];
+    if (jerryIdx >= 0) have.push(nice(["JERRY_TALISMAN_GREEN", "JERRY_TALISMAN_BLUE", "JERRY_TALISMAN_PURPLE", "JERRY_TALISMAN_GOLDEN"][jerryIdx]));
+    if (yeti) have.push(`Baby Yeti pet (${yeti.tier[0] + yeti.tier.slice(1).toLowerCase()} lvl ${yeti.level})`);
+    const todo = [];
+    if (jerryIdx >= 0 && jerryIdx < 3) todo.push({ pr: 3, text: "Upgrade your Jerry talisman during Jerry's Workshop (last SkyBlock month of the year)." });
+    if (!yeti) todo.push({ pr: 3, text: "Fish up a Baby Yeti pet in the Jerry pond - strong fishing pet, only available during winter." });
+    events.push({
+      name: "Jerry's Workshop (Winter)",
+      active: "Seasonal (SkyBlock winter)",
+      stats: [
+        ["Gifts given", (playerStats.gifts?.given ?? 0).toLocaleString("en-US")],
+        ["Gifts received", (playerStats.gifts?.received ?? 0).toLocaleString("en-US")],
+      ],
+      have,
+      todo,
+    });
+  }
+
+  // fold the strongest event to-dos into the main recommendation list (max MEDIUM - events are periodic)
+  for (const ev of events) {
+    for (const t of ev.todo) {
+      if (t.pr <= 2) rec(2, "Events", `${ev.name.split(" (")[0]}: ${t.text.split(" - ")[0]}`, t.text, "See the Events section for details.");
+    }
+  }
+
   // ---- fold tracker results into recommendations ----
   if (accUpgrades.length) {
     rec(2, "Accessories", `${accUpgrades.length} accessory upgrade(s) ready to work on`,
@@ -647,7 +802,7 @@ async function main() {
   }
 
   // ---------------- sort recommendations ----------------
-  const catOrder = { Setup: 0, Skills: 1, Slayers: 2, Dungeons: 3, Gear: 4, Accessories: 5, Pets: 6, Minions: 7 };
+  const catOrder = { Setup: 0, Skills: 1, Slayers: 2, Dungeons: 3, Gear: 4, Accessories: 5, Pets: 6, Minions: 7, Events: 8 };
   recs.sort((a, b) => a.priority - b.priority || (catOrder[a.category] ?? 9) - (catOrder[b.category] ?? 9));
 
   // =================================================================
@@ -741,6 +896,7 @@ async function main() {
       upgrades: accUpgrades,
       missing: accMissing,
     },
+    events,
     recommendations: recs,
     error: null,
   };
