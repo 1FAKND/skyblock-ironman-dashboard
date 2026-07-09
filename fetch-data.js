@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.5.1"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.6.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -805,6 +805,84 @@ async function main() {
   }
 
   // =================================================================
+  // SLAYER LOADOUTS - the best kit you actually OWN for each slayer,
+  // tuned to your current level. Museum-donated gear doesn't count.
+  // =================================================================
+
+  const slayerLvl = (b) => slayerBosses[b]?.level ?? 0;
+  const ownedSetPieces = (family) => ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter((s) => usableIds.has(family + "_" + s)).length;
+  const bestOwnedSet = (sets) => {
+    for (const s of sets) { const c = ownedSetPieces(s.id); if (c >= 3) return { name: s.name || nice(s.id), pieces: c, why: s.why || null }; }
+    return null;
+  };
+  const bestOwnedOf = (ids) => { const hit = ids.find((id) => usableIds.has(id)); return hit ? nice(hit) : null; };
+  const bestOwnedPet = (types) => { for (const t of types) if (petByType[t]) { const p = petByType[t]; return { name: nice(t), tier: p.tier, level: p.level }; } return null; };
+  const EQUIP_SLOTS = { // per-slot candidates, best first (generic combat)
+    Necklace: ["VANQUISHED_MAGMA_NECKLACE", "ENDER_NECKLACE", "THUNDERBOLT_NECKLACE"],
+    Cloak: ["VANQUISHED_GHAST_CLOAK", "ENDER_CLOAK", "DAVIDS_CLOAK"],
+    Belt: ["IMPLOSION_BELT", "ENDER_BELT", "ADAPTIVE_BELT"],
+    Gloves: ["VANQUISHED_GLOWSTONE_GAUNTLET", "ENDER_GAUNTLET", "DWARVEN_HANDWARMERS"],
+  };
+
+  const SLAYER_KITS = [
+    {
+      boss: "zombie", label: "Revenant Horror (Zombie)", maxTier: 5,
+      weapons: ["AXE_OF_THE_SHREDDED", "REAPER_FALCHION", "REVENANT_FALCHION", "REVENANT_SWORD", "ZOMBIE_KNIGHT_SWORD", "UNDEAD_SWORD"],
+      weaponHint: "Craft the Revenant Falchion from Revenant Flesh (recipe via Maddox) - it does bonus damage to zombies and carries you to T4.",
+      sets: [{ id: "REAPER", why: "healing-focused, made for this fight" }, { id: "REVENANT" }, { id: "SHADOW_ASSASSIN", why: "strong all-rounder" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }, { id: "HEAVY", why: "raw defense" }],
+      pets: ["ENDER_DRAGON", "TIGER", "LION", "WOLF", "ENDERMAN"],
+      note: "Revenants hit hard in melee - sustain (lifesteal weapons) or raw tankiness wins the early tiers.",
+    },
+    {
+      boss: "spider", label: "Tarantula Broodfather (Spider)", maxTier: 4,
+      weapons: ["SCORPION_FOIL", "RECLUSE_FANG", "SPIDER_SWORD"],
+      weaponHint: "No spider-specific weapon owned - your strongest general melee works; the Scorpion Foil upgrade unlocks at Spider Slayer 6.",
+      sets: [{ id: "TARANTULA", why: "made for this fight" }, { id: "SHADOW_ASSASSIN" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }, { id: "END", name: "Ender Armor", why: "cheap and solid" }],
+      pets: ["ENDER_DRAGON", "TIGER", "TARANTULA", "WOLF"],
+      note: "Watch the boss's Voodoo Doll phase - break it fast or heal through it.",
+    },
+    {
+      boss: "wolf", label: "Sven Packmaster (Wolf)", maxTier: 4,
+      weapons: ["POOCH_SWORD", "SHAMAN_SWORD", "HYPER_CLEAVER"],
+      weaponHint: "The Pooch Sword (Sven drop) is the wolf specialist - +1 damage per 50 max Health.",
+      sets: [{ id: "MASTIFF", why: "+500 HP per piece; Sven deals true damage, so raw HP beats defense" }, { id: "SHADOW_ASSASSIN" }, { id: "SUPERIOR_DRAGON" }, { id: "HEAVY" }],
+      pets: ["ENDER_DRAGON", "TIGER", "LION", "WOLF"],
+      note: "Mastiff + Pooch Sword scale together: the HP stack feeds the sword's damage.",
+    },
+    {
+      boss: "enderman", label: "Voidgloom Seraph (Enderman)", maxTier: 4,
+      weapons: ["ATOMSPLIT_KATANA", "VORPAL_KATANA", "VOIDWALKER_KATANA", "VOIDEDGE_KATANA"],
+      weaponHint: "Katanas do bonus damage to Endermen - always run the highest you own. Voidwalker only needs Eman Slayer 1 + materials.",
+      sets: [{ id: "FINAL_DESTINATION", why: "built for enderman grinding" }, { id: "SHADOW_ASSASSIN" }, { id: "END", name: "Ender Armor", why: "ALL stats x2 while on the End Island - beats fancier sets there" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }],
+      pets: ["ENDER_DRAGON", "TIGER", "ENDERMAN", "BAT"],
+      equipOverride: { Cloak: ["ENDER_CLOAK", "VANQUISHED_GHAST_CLOAK"], Belt: ["ENDER_BELT", "IMPLOSION_BELT"], Necklace: ["ENDER_NECKLACE", "VANQUISHED_MAGMA_NECKLACE"], Gloves: ["ENDER_GAUNTLET", "VANQUISHED_GLOWSTONE_GAUNTLET"] },
+      note: "Ender gear (armor AND equipment like your Ender Cloak/Belt) has doubled stats in the End - a budget loadout that seriously outperforms its rarity there. Beware the Seraph's beacon phase: break beacons instantly.",
+    },
+    {
+      boss: "blaze", label: "Inferno Demonlord (Blaze)", maxTier: 4,
+      weapons: ["BLADE_OF_THE_VOLCANO", "SOUL_WHIP"],
+      weaponHint: "T1-T2 Demonlords fall to any strong melee - dedicated blaze gear (Fiery weapons, Crimson sets) comes from the Crimson Isle as you level it.",
+      sets: [{ id: "CRIMSON" }, { id: "TERROR" }, { id: "AURORA" }, { id: "FERVOR" }, { id: "FROZEN_BLAZE" }, { id: "SHADOW_ASSASSIN" }, { id: "ADAPTIVE" }],
+      pets: ["ENDER_DRAGON", "TIGER", "LION", "BLAZE"],
+      note: "From T2 the boss uses elemental attunements (its nametag shows which damage type it takes) - stay mobile and re-read the nametag after each phase.",
+    },
+  ];
+
+  const suggestedTier = (lvl, max) => Math.min(max, lvl <= 1 ? 1 : lvl <= 3 ? 2 : lvl <= 5 ? 3 : 4);
+  const slayerLoadouts = SLAYER_KITS.map((k) => {
+    const lvl = slayerLvl(k.boss);
+    const weapon = bestOwnedOf(k.weapons);
+    const armor = bestOwnedSet(k.sets);
+    const pet = bestOwnedPet(k.pets);
+    const slots = { ...EQUIP_SLOTS, ...(k.equipOverride || {}) };
+    const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, name: bestOwnedOf(ids) })).filter((e) => e.name);
+    return {
+      boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
+      weapon, weaponHint: weapon ? null : k.weaponHint, armor, pet, equipment, note: k.note,
+    };
+  });
+
+  // =================================================================
   // CRAFT PRIORITIES - gate-checked against YOUR profile.
   // Recipes/requirements verified against the NotEnoughUpdates item
   // repo (2026-07-08). Status per target:
@@ -819,7 +897,6 @@ async function main() {
   const sackOf = (id) => sacks[id] ?? 0;
   const n = (x) => Math.round(x).toLocaleString("en-US");
   const collTier = (name) => member.collectionTiers?.[name] ?? 0;
-  const slayerLvl = (b) => slayerBosses[b]?.level ?? 0;
   const countItems = (id) => allItems.filter((i) => i.id === id && i.container !== "museum").length;
   const potm = member.stats?.mining?.peakOfTheMountainLevel ?? 0;
 
@@ -1157,6 +1234,7 @@ async function main() {
       missing: accMissing,
     },
     events,
+    slayerLoadouts,
     craftPriorities,
     recommendations: recs,
     error: null,
