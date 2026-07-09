@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.5.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.5.1"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -705,10 +705,11 @@ async function main() {
     const med = j.medals || {}, earned = j.earnedMedals || {}, perks = j.perks || {};
     const todo = [];
     if (perks.personalBests === false && (earned.gold ?? 0) > 0) {
-      todo.push({ pr: 2, text: "Unlock the Personal Bests perk in Anita's shop - you have unspent gold medals and it's a permanent buff." });
+      todo.push({ pr: 2, text: "Buy the Personal Bests perk from Anita (Farmhouse, or in your Garden) - permanent Crop Fortune that grows as you beat your own contest records." });
     }
     if ((perks.doubleDrops ?? 0) < 15) {
-      todo.push({ pr: 2, text: `Double Drops perk is ${perks.doubleDrops ?? 0}/15 - spend gold medals at Anita to max it (+${(15 - (perks.doubleDrops ?? 0)) * 2}% more crop drops available).` });
+      const tiersLeft = 15 - (perks.doubleDrops ?? 0);
+      todo.push({ pr: 2, text: `Extra Farming Fortune is ${perks.doubleDrops ?? 0}/15 tiers - buy the remaining tiers from Anita (Farmhouse, or in your Garden) with Gold Medals + Jacob's Tickets for +${tiersLeft * 4} more permanent Farming Fortune. (Older guides and the API call this perk "Double Drops".)` });
     }
     if ((med.bronze ?? 0) + (med.silver ?? 0) + (med.gold ?? 0) > 10) {
       todo.push({ pr: 3, text: `You're sitting on ${med.bronze ?? 0} bronze / ${med.silver ?? 0} silver / ${med.gold ?? 0} gold unspent medals - browse Anita's shop.` });
@@ -721,7 +722,7 @@ async function main() {
         ["Gold medals earned", (earned.gold ?? 0) + (earned.platinum ?? 0) + (earned.diamond ?? 0)],
         ["Diamond medals", earned.diamond ?? 0],
         ["Unspent medals", `${med.bronze ?? 0}🥉 ${med.silver ?? 0}🥈 ${med.gold ?? 0}🥇`],
-        ["Double Drops perk", `${perks.doubleDrops ?? 0}/15`],
+        ["Extra Farming Fortune (Anita)", `+${(perks.doubleDrops ?? 0) * 4}/60`],
         ["Farming level cap bought", `+${perks.levelCap ?? 0}`],
       ],
       have: [],
