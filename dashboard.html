@@ -244,8 +244,11 @@ function render() {
         html += `<div class="rec p${pr}">
           <div class="rhead"><span class="title">${esc(c.name)}</span></div>
           <div class="why">${esc(c.why)}</div>
-          <div style="margin-top:6px;font-size:13.5px">${c.checks.map(ch =>
-            `<div style="color:${ch.ok ? "var(--green)" : "var(--red)"}">${ch.ok ? "✓" : "✗"} <span style="color:${ch.ok ? "var(--dim)" : "var(--red)"}">${esc(ch.label)}</span></div>`).join("")}
+          <div style="margin-top:6px;font-size:13.5px">${c.checks.map(ch => {
+            const col = ch.warn ? "var(--med)" : ch.ok ? "var(--green)" : "var(--red)";
+            const mark = ch.warn ? "⚖" : ch.ok ? "✓" : "✗";
+            return `<div style="color:${col}">${mark} <span style="color:${ch.warn ? "var(--med)" : ch.ok ? "var(--dim)" : "var(--red)"}">${esc(ch.label)}</span></div>`;
+          }).join("")}
           </div>
           ${c.insteadOf ? `<div class="how" style="margin-top:6px"><b>Instead of:</b> ${esc(c.insteadOf)}</div>` : ""}
         </div>`;

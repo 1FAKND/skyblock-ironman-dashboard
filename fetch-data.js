@@ -802,17 +802,26 @@ async function main() {
   const gSlayer = (boss, lvl) => ({ label: `${boss[0].toUpperCase() + boss.slice(1)} Slayer ${lvl} (you: ${slayerLvl(boss)})`, ok: slayerLvl(boss) >= lvl, gate: true });
   const gColl = (name, tier, label) => ({ label: `${label} collection ${tier} (you: ${collTier(name)})`, ok: collTier(name) >= tier, gate: true });
   const gBase = (id, label) => ({ label: `${label} (base item)`, ok: ownedIds.has(id), gate: true });
-  const gMat = (need, have, label) => ({ label: `${n(need)}x ${label} (you: ${n(have)})`, ok: have >= need });
+  // resId (optional) marks the material as part of a shared pool - after all
+  // targets are defined, demand is totaled per resource and allocated to the
+  // most valuable crafts first (rank 1 = permanent accessory, 2 = weapon/tool,
+  // 3 = situational armor / museum fodder).
+  const gMat = (need, have, label, resId) => ({ label: `${n(need)}x ${label} (you: ${n(have)})`, ok: have >= need, _res: resId ? { id: resId, need, have } : null });
   const gInfo = (label, ok = true) => ({ label, ok });
 
   const craftPriorities = [];
-  const target = (ids, name, checks, why, insteadOf) => {
+  const resourceDemand = {};
+  const statusRank = { ready: 0, gather: 1, locked: 2 };
+  const target = (ids, name, checks, why, insteadOf, rank = 1) => {
     if ((Array.isArray(ids) ? ids : [ids]).some((x) => ownedIds.has(x))) return; // already own it
     const locked = checks.some((c) => c.gate && !c.ok);
     const short = checks.some((c) => !c.ok);
+    const status = locked ? "locked" : short ? "gather" : "ready";
+    for (const c of checks) {
+      if (c._res) (resourceDemand[c._res.id] ||= []).push({ name, need: c._res.need, have: c._res.have, rank, status, order: craftPriorities.length });
+    }
     craftPriorities.push({
-      name, why, insteadOf: insteadOf || null,
-      status: locked ? "locked" : short ? "gather" : "ready",
+      name, why, rank, insteadOf: insteadOf || null, status,
       checks: checks.map(({ label, ok }) => ({ label, ok })),
     });
   };
@@ -830,8 +839,26 @@ async function main() {
 
   if (ownedIds.has("MINERAL_TALISMAN"))
     target("GLOSSY_MINERAL_TALISMAN", "Glossy Mineral Talisman", [
-      gBase("MINERAL_TALISMAN", "Mineral Talisman"), gMat(16, sackOf("GLOSSY_GEMSTONE"), "Glossy Gemstone"),
+      gBase("MINERAL_TALISMAN", "Mineral Talisman"), gMat(16, sackOf("GLOSSY_GEMSTONE"), "Glossy Gemstone", "GLOSSY_GEMSTONE"),
     ], "Direct upgrade to an accessory you already carry.");
+
+  // Glossy Mineral armor set completion - competes with the talisman for gemstones
+  {
+    const upgradable = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter(
+      (s) => !ownedIds.has("GLOSSY_MINERAL_" + s) && ownedIds.has("MINERAL_" + s)
+    );
+    if (upgradable.length) {
+      const outclassed = ["DIVAN", "SORROW", "ARMOR_OF_DIVAN"].some((p) => [...ownedIds].some((id) => id.startsWith(p)));
+      target([], `Glossy Mineral armor - upgrade ${upgradable.length} piece(s) (${upgradable.map((s) => s.toLowerCase()).join(", ")})`, [
+        ...upgradable.map((s) => gBase("MINERAL_" + s, `Mineral ${s[0] + s.slice(1).toLowerCase()} (base)`)),
+        gMat(16 * upgradable.length, sackOf("GLOSSY_GEMSTONE"), "Glossy Gemstone (16 per piece)", "GLOSSY_GEMSTONE"),
+      ],
+      outclassed
+        ? "Completes the set, but your Divan/Sorrow gear outclasses it for actual mining - this is museum/collection value, which is why the talisman outranks it for the same gemstones."
+        : "Solid mining set upgrade using the same Glossy Gemstones as the talisman.",
+      null, outclassed ? 3 : 2);
+    }
+  }
 
   if (ownedIds.has("SPEED_RING"))
     target("SPEED_ARTIFACT", "Speed Artifact", [
@@ -842,12 +869,12 @@ async function main() {
 
   target(["DAY_CRYSTAL"], "Day Crystal", [
     gColl("QUARTZ", 8, "Nether Quartz"),
-    gMat(164, sackOf("ENCHANTED_QUARTZ") + sackOf("ENCHANTED_QUARTZ_BLOCK") * 160, "Enchanted Quartz worth (4 + 1 block @160)"),
+    gMat(164, sackOf("ENCHANTED_QUARTZ") + sackOf("ENCHANTED_QUARTZ_BLOCK") * 160, "Enchanted Quartz worth (4 + 1 block @160)", "ENCHANTED_QUARTZ"),
   ], "Permanent accessory (quartz-based - NOT end stone). Its twin, the Night Crystal, uses the same materials.");
 
   target(["NIGHT_CRYSTAL"], "Night Crystal", [
     gColl("QUARTZ", 7, "Nether Quartz"),
-    gMat(164, sackOf("ENCHANTED_QUARTZ") + sackOf("ENCHANTED_QUARTZ_BLOCK") * 160, "Enchanted Quartz worth (4 + 1 block @160)"),
+    gMat(164, sackOf("ENCHANTED_QUARTZ") + sackOf("ENCHANTED_QUARTZ_BLOCK") * 160, "Enchanted Quartz worth (4 + 1 block @160)", "ENCHANTED_QUARTZ"),
   ], "Pairs with the Day Crystal; together they also buff stats on your island.");
 
   if (ownedIds.has("POWER_RING"))
@@ -860,13 +887,13 @@ async function main() {
   const emeraldWorth = sackOf("ENCHANTED_EMERALD") + sackOf("ENCHANTED_EMERALD_BLOCK") * 160;
   target(["ENDER_ARTIFACT", "ENDER_RELIC"], "Ender Artifact", [
     gInfo("Bought in the Trades menu (unlocked via Emerald collection)"),
-    gMat(312, emeraldWorth, "Enchanted Emerald"),
+    gMat(312, emeraldWorth, "Enchanted Emerald", "ENCHANTED_EMERALD"),
   ], "Permanent Magical Power + End-zone stats, and you live in the End right now.",
   "the Wither Artifact - the SAME 312 Enchanted Emerald trade. Ender first while the End is your grind, Wither second");
 
   target(["WITHER_ARTIFACT", "WITHER_RELIC"], "Wither Artifact", [
     gInfo("Bought in the Trades menu (unlocked via Emerald collection)"),
-    gMat(312, emeraldWorth, "Enchanted Emerald"),
+    gMat(312, emeraldWorth, "Enchanted Emerald", "ENCHANTED_EMERALD"),
   ], "Second of the two emerald-trade artifacts - queue it after the Ender Artifact.");
 
   target("BAIT_RING", "Bait Ring", [
@@ -875,7 +902,7 @@ async function main() {
 
   if (slayerLvl("enderman") >= 2 && !ownedIds.has("SOULFLOW_SUPERCELL"))
     target(["SOULFLOW_PILE", "SOULFLOW_BATTERY"], "Soulflow Pile (→ Battery → Supercell)", [
-      gSlayer("enderman", 2), gMat(90, sackOf("NULL_SPHERE"), "Null Sphere"),
+      gSlayer("enderman", 2), gMat(90, sackOf("NULL_SPHERE"), "Null Sphere", "NULL_SPHERE"),
     ], "First step of the soulflow chain. Long-term the same soulflow economy also feeds the Overflux Capacitor power orb - orb before passive accessories when you must choose.");
 
   // --- locked-behind-slayer targets (listed so you can see the bottleneck) ---
@@ -891,7 +918,7 @@ async function main() {
     target("SPIDER_ARTIFACT", "Spider Artifact", [
       gSlayer("spider", 6), gBase("SPIDER_RING", "Spider Ring"),
       gMat(32, sackOf("TARANTULA_SILK"), "Tarantula Silk"),
-      gMat(32, sackOf("ENCHANTED_EMERALD"), "Enchanted Emerald"),
+      gMat(32, sackOf("ENCHANTED_EMERALD"), "Enchanted Emerald", "ENCHANTED_EMERALD"),
     ], "Blocked by Spider Slayer 6 - one level away. Silk drops from the same bosses that level you.");
 
   target("TARANTULA_TALISMAN", "Tarantula Talisman", [
@@ -901,7 +928,7 @@ async function main() {
   if (usableIds.has("ASPECT_OF_THE_END"))
     target("ASPECT_OF_THE_VOID", "Aspect of the Void", [
       gSlayer("enderman", 6), gBase("ASPECT_OF_THE_END", "Aspect of the End"),
-      gMat(4096, sackOf("NULL_SPHERE"), "Null Sphere (as 32 Null Ovoids)"),
+      gMat(4096, sackOf("NULL_SPHERE"), "Null Sphere (as 32 Null Ovoids)", "NULL_SPHERE"),
       gMat(1024, sackOf("ENCHANTED_OBSIDIAN"), "Enchanted Obsidian"),
     ], "A long-term goal, not a quick craft: Enderman Slayer 6 gates the recipe and the Null Ovoid cost is steep. Your Voidgloom push works toward it automatically.");
 
@@ -937,7 +964,29 @@ async function main() {
     gMat(8, countItems("TREASURE_TALISMAN"), "Treasure Talisman copies (dungeon chest drops)"),
   ], "Eight Treasure Talismans fuse into the ring - a slow dungeon-chest collection that happens alongside your Catacombs push.");
 
-  const statusRank = { ready: 0, gather: 1, locked: 2 };
+  // ---- shared-resource budget: when total demand for a material exceeds
+  // supply, allocate it to the most valuable crafts first and flag the rest
+  for (const [resId, demands] of Object.entries(resourceDemand)) {
+    if (demands.length < 2) continue;
+    const supply = demands[0].have;
+    const total = demands.reduce((a, d) => a + d.need, 0);
+    if (total <= supply) continue; // enough for everything - no conflict
+    const sorted = [...demands].sort((a, b) => a.rank - b.rank || statusRank[a.status] - statusRank[b.status] || a.order - b.order);
+    let cum = 0;
+    for (const d of sorted) {
+      const covered = cum + d.need <= supply;
+      cum += d.need;
+      const others = sorted.filter((x) => x !== d).map((x) => `${x.name.split(" - ")[0]} (${n(x.need)})`).join(", ");
+      const t = craftPriorities.find((c) => c.name === d.name);
+      if (!t) continue;
+      t.checks.push({
+        label: `${nice(resId)} is a shared pool - also wanted by: ${others}. Total demand ${n(total)} vs your ${n(supply)}.${covered ? " This craft is within budget (higher priority takes first)." : " Short after higher-priority crafts claim theirs - gather more or skip the lower-value use."}`,
+        ok: covered, warn: true,
+      });
+      if (!covered && t.status === "ready") t.status = "gather";
+    }
+  }
+
   craftPriorities.sort((a, b) => statusRank[a.status] - statusRank[b.status]);
 
   for (const c of craftPriorities) {
