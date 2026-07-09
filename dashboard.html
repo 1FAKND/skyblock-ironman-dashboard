@@ -152,6 +152,16 @@ function render() {
     <div class="updated">Data refreshed<br><b>${when.toLocaleString()}</b>${ageH > 26 ? `<br><span style="color:var(--med)">⚠ over ${Math.floor(ageH)}h old - run Refresh Dashboard.bat</span>` : ""}</div>
   </header>`;
 
+  if (D.updateAvailable) {
+    const u = D.updateAvailable;
+    html += `<div class="warn" style="background:#14301c;border-color:#2d6b3f;color:#8ee6a8">
+      ⬆ <b>Update available:</b> you're on v${esc(u.current)}, the latest is v${esc(u.latest)}.
+      <a href="${esc(u.zip)}" style="color:#55ff55">Download the new ZIP</a> and copy the files over this folder -
+      your username and data are kept (they're not part of the download).
+      <a href="${esc(u.url)}" style="color:var(--dim)">(what's new)</a>
+    </div>`;
+  }
+
   for (const w of D.warnings || []) html += `<div class="warn">⚠ ${esc(w)}</div>`;
   if (D.api && D.api.inventories === false)
     html += `<div class="warn">⚠ Inventory API is disabled on Hypixel - gear &amp; accessory sections are empty. Enable it: SkyBlock Menu → Settings → Personal → API Settings.</div>`;

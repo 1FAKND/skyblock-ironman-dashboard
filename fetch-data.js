@@ -12,9 +12,13 @@
 const fs = require("fs");
 const path = require("path");
 
+const VERSION = "1.5.0"; // bump on every meaningful release - the update check compares this
+const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
+const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
+
 const API = "https://api.elitebot.dev";
 const HERE = __dirname;
-const UA = "SkyBlock-Ironman-Dashboard/1.0 (personal local dashboard)";
+const UA = `SkyBlock-Ironman-Dashboard/${VERSION} (personal local dashboard)`;
 
 // ---------------------------------------------------------------- utilities
 
@@ -37,6 +41,25 @@ async function fetchJson(url, { optional = false } = {}) {
       console.log(`  retry ${attempt + 1}/3 for ${url} (${err.message})`);
       await new Promise((r) => setTimeout(r, 1500 * attempt));
     }
+  }
+}
+
+// compares this copy's VERSION against the one published on GitHub;
+// returns update info or null (silently, so a failed check never breaks a refresh)
+async function checkForUpdate() {
+  try {
+    const res = await fetch(REMOTE_SELF, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(10000) });
+    if (!res.ok) return null;
+    const remote = (await res.text()).match(/const VERSION = "([\d.]+)"/)?.[1];
+    if (!remote) return null;
+    const a = VERSION.split(".").map(Number), b = remote.split(".").map(Number);
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      if ((b[i] ?? 0) > (a[i] ?? 0)) return { current: VERSION, latest: remote, url: REPO_URL, zip: `${REPO_URL}/archive/refs/heads/main.zip` };
+      if ((b[i] ?? 0) < (a[i] ?? 0)) return null;
+    }
+    return null;
+  } catch {
+    return null;
   }
 }
 
@@ -102,6 +125,7 @@ async function main() {
   }
 
   console.log(`Fetching SkyBlock data for "${username}" ...`);
+  const updatePromise = checkForUpdate(); // runs alongside the data fetch
 
   // ---- account + profile selection
   let account;
@@ -1051,8 +1075,13 @@ async function main() {
     rarity: itemRarity(it),
   });
 
+  const updateAvailable = await updatePromise;
+  if (updateAvailable) console.log(`\nUpdate available: v${updateAvailable.current} → v${updateAvailable.latest} (${updateAvailable.url})`);
+
   const data = {
     generatedAt: new Date().toISOString(),
+    version: VERSION,
+    updateAvailable,
     player: {
       username: account.name || username,
       uuid: account.id,

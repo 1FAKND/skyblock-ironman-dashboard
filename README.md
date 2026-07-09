@@ -80,6 +80,14 @@ opens the dashboard in your browser.
 Re-run whenever you want fresh data. The analysis rebuilds itself from scratch each
 time, so completed recommendations disappear automatically.
 
+## Updates
+
+Every refresh quietly checks this repository for a newer version. When one
+exists, the dashboard shows a green banner with a download link. To update:
+download the ZIP, extract it, and copy the files over your existing folder -
+your `config.json` (username) and `data.js` (your data) are not part of the
+download, so they're kept.
+
 ## Portable / USB-stick mode
 
 The whole dashboard is self-contained - copy the folder to a USB stick and your
