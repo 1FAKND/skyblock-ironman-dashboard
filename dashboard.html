@@ -263,7 +263,9 @@ function render() {
         <div class="sub" style="margin-top:8px">
           ${L.weapon ? "" : `<div style="color:var(--med)">Weapon: ${esc(L.weaponHint || "use your strongest melee")}</div>`}
           ${L.armor ? `<div>Set: <b>${esc(L.armor.name)}</b> (${L.armor.pieces}/4 owned)${L.armor.why ? ` - ${esc(L.armor.why)}` : ""}</div>` : `<div style="color:var(--med)">Armor: no matching set owned - use your best defensive set</div>`}
-          <div>Pet: ${L.pet ? `<b class="r-${esc(L.pet.tier)}">${esc(L.pet.name)}</b> lvl ${L.pet.level}` : `<span style="color:var(--med)">no suitable combat pet</span>`}</div>
+          <div>Pet: ${L.pet ? `<b class="r-${esc(L.pet.tier)}">${esc(L.pet.name)}</b> lvl ${L.pet.level} <span style="color:var(--dim)">- ${esc(L.pet.why || "")}</span>` : `<span style="color:var(--med)">no suitable combat pet owned</span>`}</div>
+          ${L.petAlt ? `<div style="color:var(--dim)">Also viable: <b class="r-${esc(L.petAlt.tier)}">${esc(L.petAlt.name)}</b> lvl ${L.petAlt.level} - ${esc(L.petAlt.why)}</div>` : ""}
+          ${L.petGoal ? `<div style="color:var(--med)">Pet upgrade goal: <b>${esc(L.petGoal.name)}</b> - ${esc(L.petGoal.why)}${L.petGoal.obtain ? ` (${esc(L.petGoal.obtain)})` : ""}</div>` : ""}
           <div style="margin-top:4px">${esc(L.note)}</div>
         </div>
       </div>`;

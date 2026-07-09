@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.8.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.9.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -854,7 +854,18 @@ async function main() {
     return null;
   };
   const bestOwnedId = (ids) => ids.find((id) => usableIds.has(id)) || null;
-  const bestOwnedPet = (types) => { for (const t of types) if (petByType[t]) { const p = petByType[t]; return { name: nice(t), tier: p.tier, level: p.level }; } return null; };
+  // pets: ranked {type, why} lists per slayer (abilities verified via NEU lore).
+  // Returns the best owned pet with its reason, an owned alternative, and the
+  // unowned upgrade goal if something better exists.
+  const PET_OBTAIN = { ENDER_DRAGON: "eggs drop from End dragon fights (damage placement/RNG) - Ironman-obtainable" };
+  const pickPets = (ranked) => {
+    const owned = ranked.filter((p) => petByType[p.type]);
+    const pick = owned[0] ? { ...owned[0], ...(({ tier, level }) => ({ tier, level }))(petByType[owned[0].type]), name: nice(owned[0].type) } : null;
+    const alt = owned[1] ? { name: nice(owned[1].type), level: petByType[owned[1].type].level, tier: petByType[owned[1].type].tier, why: owned[1].why } : null;
+    const goalEntry = pick ? ranked.slice(0, ranked.findIndex((p) => p.type === owned[0].type)).find((p) => !petByType[p.type]) : ranked[0];
+    const goal = goalEntry ? { name: nice(goalEntry.type), why: goalEntry.why, obtain: PET_OBTAIN[goalEntry.type] || null } : null;
+    return { pick, alt, goal };
+  };
   const EQUIP_SLOTS = { // per-slot candidates, best first (generic combat)
     Necklace: ["VANQUISHED_MAGMA_NECKLACE", "ENDER_NECKLACE", "THUNDERBOLT_NECKLACE"],
     Cloak: ["VANQUISHED_GHAST_CLOAK", "ENDER_CLOAK", "DAVIDS_CLOAK"],
@@ -868,7 +879,12 @@ async function main() {
       weapons: ["AXE_OF_THE_SHREDDED", "REAPER_FALCHION", "REVENANT_FALCHION", "REVENANT_SWORD", "ZOMBIE_KNIGHT_SWORD", "UNDEAD_SWORD"],
       weaponHint: "Craft the Revenant Falchion from Revenant Flesh (recipe via Maddox) - it does bonus damage to zombies and carries you to T4.",
       sets: [{ id: "REAPER", why: "healing-focused, made for this fight" }, { id: "REVENANT" }, { id: "SHADOW_ASSASSIN", why: "strong all-rounder" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }, { id: "HEAVY", why: "raw defense" }],
-      pets: ["ENDER_DRAGON", "TIGER", "LION", "WOLF", "ENDERMAN"],
+      pets: [
+        { type: "ENDER_DRAGON", why: "Superior boosts ALL combat stats - best general boss pet" },
+        { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets - slayer bosses fight alone" },
+        { type: "WITHER_SKELETON", why: "raw Strength/Crit stats plus a wither damage-over-time on hit" },
+        { type: "WOLF", why: "Crit Damage + Combat Wisdom for faster leveling" },
+      ],
       note: "Revenants hit hard in melee - sustain (lifesteal weapons) or raw tankiness wins the early tiers.",
     },
     {
@@ -876,7 +892,12 @@ async function main() {
       weapons: ["SCORPION_FOIL", "RECLUSE_FANG", "SPIDER_SWORD"],
       weaponHint: "No spider-specific weapon owned - your strongest general melee works; the Scorpion Foil upgrade unlocks at Spider Slayer 6.",
       sets: [{ id: "TARANTULA", why: "made for this fight" }, { id: "SHADOW_ASSASSIN" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }, { id: "END", name: "Ender Armor", why: "cheap and solid" }],
-      pets: ["ENDER_DRAGON", "TIGER", "TARANTULA", "WOLF"],
+      pets: [
+        { type: "ENDER_DRAGON", why: "Superior boosts ALL combat stats - best general boss pet" },
+        { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets - highest damage if well-leveled" },
+        { type: "TARANTULA", why: "Webbed Cells resists the boss's anti-healing + bonus spider Combat XP - swap in if yours is leveled" },
+        { type: "WOLF", why: "Crit Damage + Combat Wisdom for faster leveling" },
+      ],
       note: "Watch the boss's Voodoo Doll phase - break it fast or heal through it.",
     },
     {
@@ -884,7 +905,12 @@ async function main() {
       weapons: ["POOCH_SWORD", "SHAMAN_SWORD", "HYPER_CLEAVER"],
       weaponHint: "The Pooch Sword (Sven drop) is the wolf specialist - +1 damage per 50 max Health.",
       sets: [{ id: "MASTIFF", why: "+500 HP per piece; Sven deals true damage, so raw HP beats defense" }, { id: "SHADOW_ASSASSIN" }, { id: "SUPERIOR_DRAGON" }, { id: "HEAVY" }],
-      pets: ["ENDER_DRAGON", "TIGER", "LION", "WOLF"],
+      pets: [
+        { type: "ENDER_DRAGON", why: "Superior boosts ALL combat stats - best general boss pet" },
+        { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets - top owned damage" },
+        { type: "WOLF", why: "Alpha Dog: take less damage FROM wolves - swap in if Sven is killing you" },
+        { type: "HOUND", why: "bonus Combat XP against wolves - great for leveling this slayer once the pet itself is leveled" },
+      ],
       note: "Mastiff + Pooch Sword scale together: the HP stack feeds the sword's damage.",
     },
     {
@@ -892,7 +918,11 @@ async function main() {
       weapons: ["ATOMSPLIT_KATANA", "VORPAL_KATANA", "VOIDWALKER_KATANA", "VOIDEDGE_KATANA"],
       weaponHint: "Katanas do bonus damage to Endermen - always run the highest you own. Voidwalker only needs Eman Slayer 1 + materials.",
       sets: [{ id: "FINAL_DESTINATION", why: "built for enderman grinding" }, { id: "SHADOW_ASSASSIN" }, { id: "END", name: "Ender Armor", why: "ALL stats x2 while on the End Island - beats fancier sets there" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }],
-      pets: ["ENDER_DRAGON", "TIGER", "ENDERMAN", "BAT"],
+      pets: [
+        { type: "ENDER_DRAGON", why: "End Strike: bonus damage to Ender mobs + Superior all-stats - THE Voidgloom pet" },
+        { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets - best owned damage until an Ender Dragon" },
+        { type: "ENDERMAN", why: "Enderian: take less damage from Ender mobs, and buffs your AOTE/AOTV teleport - defensive swap" },
+      ],
       equipOverride: { Cloak: ["ENDER_CLOAK", "VANQUISHED_GHAST_CLOAK"], Belt: ["ENDER_BELT", "IMPLOSION_BELT"], Necklace: ["ENDER_NECKLACE", "VANQUISHED_MAGMA_NECKLACE"], Gloves: ["ENDER_GAUNTLET", "VANQUISHED_GLOWSTONE_GAUNTLET"] },
       note: "Ender gear (armor AND equipment like your Ender Cloak/Belt) has doubled stats in the End - a budget loadout that seriously outperforms its rarity there. Beware the Seraph's beacon phase: break beacons instantly.",
     },
@@ -901,7 +931,11 @@ async function main() {
       weapons: ["BLADE_OF_THE_VOLCANO", "SOUL_WHIP"],
       weaponHint: "T1-T2 Demonlords fall to any strong melee - dedicated blaze gear (Fiery weapons, Crimson sets) comes from the Crimson Isle as you level it.",
       sets: [{ id: "CRIMSON" }, { id: "TERROR" }, { id: "AURORA" }, { id: "FERVOR" }, { id: "FROZEN_BLAZE" }, { id: "SHADOW_ASSASSIN" }, { id: "ADAPTIVE" }],
-      pets: ["ENDER_DRAGON", "TIGER", "LION", "BLAZE"],
+      pets: [
+        { type: "BLAZE", why: "Nether Embodiment: boosts your Combat stats while on the Crimson Isle - exactly where this fight happens" },
+        { type: "ENDER_DRAGON", why: "Superior boosts ALL combat stats - best general boss pet" },
+        { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets" },
+      ],
       note: "From T2 the boss uses elemental attunements (its nametag shows which damage type it takes) - stay mobile and re-read the nametag after each phase.",
     },
   ];
@@ -911,12 +945,12 @@ async function main() {
     const lvl = slayerLvl(k.boss);
     const weaponId = bestOwnedId(k.weapons);
     const armor = bestOwnedSet(k.sets);
-    const pet = bestOwnedPet(k.pets);
+    const { pick: pet, alt: petAlt, goal: petGoal } = pickPets(k.pets);
     const slots = { ...EQUIP_SLOTS, ...(k.equipOverride || {}) };
     const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, id: bestOwnedId(ids) })).filter((e) => e.id);
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
-      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, equipment, note: k.note,
+      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, equipment, note: k.note,
       locked: !slayerUnlocked(k.boss), unlock: slayerLockText(k.boss),
     };
   });
