@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.7.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.8.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -840,12 +840,20 @@ async function main() {
   // =================================================================
 
   const slayerLvl = (b) => slayerBosses[b]?.level ?? 0;
-  const ownedSetPieces = (family) => ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter((s) => usableIds.has(family + "_" + s)).length;
+  // full item objects (with lore) for tooltip display; museum copies excluded
+  const fullItemById = {};
+  for (const [cname, inv] of Object.entries(invs)) {
+    if (cname === "museum") continue;
+    for (const it of itemsOf(inv)) if (!fullItemById[it.skyblockId]) fullItemById[it.skyblockId] = it;
+  }
   const bestOwnedSet = (sets) => {
-    for (const s of sets) { const c = ownedSetPieces(s.id); if (c >= 3) return { name: s.name || nice(s.id), pieces: c, why: s.why || null }; }
+    for (const s of sets) {
+      const slots = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter((sl) => usableIds.has(s.id + "_" + sl));
+      if (slots.length >= 3) return { name: s.name || nice(s.id), pieces: slots.length, why: s.why || null, pieceIds: slots.map((sl) => s.id + "_" + sl) };
+    }
     return null;
   };
-  const bestOwnedOf = (ids) => { const hit = ids.find((id) => usableIds.has(id)); return hit ? nice(hit) : null; };
+  const bestOwnedId = (ids) => ids.find((id) => usableIds.has(id)) || null;
   const bestOwnedPet = (types) => { for (const t of types) if (petByType[t]) { const p = petByType[t]; return { name: nice(t), tier: p.tier, level: p.level }; } return null; };
   const EQUIP_SLOTS = { // per-slot candidates, best first (generic combat)
     Necklace: ["VANQUISHED_MAGMA_NECKLACE", "ENDER_NECKLACE", "THUNDERBOLT_NECKLACE"],
@@ -901,14 +909,14 @@ async function main() {
   const suggestedTier = (lvl, max) => Math.min(max, lvl <= 1 ? 1 : lvl <= 3 ? 2 : lvl <= 5 ? 3 : 4);
   const slayerLoadouts = SLAYER_KITS.map((k) => {
     const lvl = slayerLvl(k.boss);
-    const weapon = bestOwnedOf(k.weapons);
+    const weaponId = bestOwnedId(k.weapons);
     const armor = bestOwnedSet(k.sets);
     const pet = bestOwnedPet(k.pets);
     const slots = { ...EQUIP_SLOTS, ...(k.equipOverride || {}) };
-    const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, name: bestOwnedOf(ids) })).filter((e) => e.name);
+    const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, id: bestOwnedId(ids) })).filter((e) => e.id);
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
-      weapon, weaponHint: weapon ? null : k.weaponHint, armor, pet, equipment, note: k.note,
+      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, equipment, note: k.note,
       locked: !slayerUnlocked(k.boss), unlock: slayerLockText(k.boss),
     };
   });
@@ -1271,7 +1279,15 @@ async function main() {
       missing: accMissing,
     },
     events,
-    slayerLoadouts,
+    slayerLoadouts: slayerLoadouts.map((L) => {
+      const itemFor = (id) => (fullItemById[id] ? slim(fullItemById[id]) : { skyblockId: id, name: nice(id), lore: [] });
+      return {
+        ...L,
+        weapon: L.weaponId ? itemFor(L.weaponId) : null,
+        armorPieces: L.armor ? L.armor.pieceIds.map(itemFor) : [],
+        equipment: L.equipment.map((e) => ({ slot: e.slot, item: itemFor(e.id) })),
+      };
+    }),
     craftPriorities,
     recommendations: recs,
     error: null,

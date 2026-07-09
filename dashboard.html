@@ -217,6 +217,13 @@ function render() {
     </div>`;
   }).join("") + `</div></section>`;
 
+  // hoverable item card with full in-game tooltip (shared by Gear + Slayer loadouts)
+  const item = (it, tag) => `<div class="card item">
+      <div class="name"><span>${mc(it.name)}</span>${tag ? `<span style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.5px">${esc(tag)}</span>` : ""}</div>
+      <div class="sub">${it.reforge ? cap(it.reforge) + " · " : ""}${it.rarity ? `<span class="r-${esc(it.rarity)}">${esc(it.rarity)}</span>` : ""}${it.recombobulated ? " · recombed" : ""}${it.hotPotato ? ` · HPB ${it.hotPotato}` : ""}</div>
+      ${(it.lore || []).length ? `<div class="tip">${mcTip(it.lore)}</div>` : ""}
+    </div>`;
+
   // ---- Slayers
   const slayerOrder = ["zombie","spider","wolf","enderman","blaze","vampire"];
   const slayerNames = { zombie:"Revenant (Zombie)", spider:"Tarantula (Spider)", wolf:"Sven (Wolf)", enderman:"Voidgloom (Enderman)", blaze:"Inferno (Blaze)", vampire:"Riftstalker (Vampire)" };
@@ -248,13 +255,17 @@ function render() {
           <span style="color:var(--dim);font-size:13px">${L.locked ? "" : `your level ${L.level} → farm Tier ${L.suggestedTier}${L.suggestedTier < L.maxTier ? ` (of ${L.maxTier})` : " (max)"}`}</span>
         </div>
         ${L.locked ? `<div class="sub" style="color:var(--red);margin-top:4px">${esc(L.unlock || "")}. The kit below is for once it's unlocked.</div>` : ""}
-        <table class="plain" style="margin-top:8px;font-size:13.5px">
-          <tr><td style="color:var(--dim);width:90px">Weapon</td><td>${L.weapon ? `<b>${esc(L.weapon)}</b>` : `<span style="color:var(--med)">none specialized - ${esc(L.weaponHint || "use your strongest melee")}</span>`}</td></tr>
-          <tr><td style="color:var(--dim)">Armor</td><td>${L.armor ? `<b>${esc(L.armor.name)}</b> (${L.armor.pieces}/4 owned)${L.armor.why ? ` <span style="color:var(--dim)">- ${esc(L.armor.why)}</span>` : ""}` : `<span style="color:var(--med)">no matching set owned - use your best defensive set</span>`}</td></tr>
-          <tr><td style="color:var(--dim)">Equipment</td><td>${L.equipment.length ? L.equipment.map(e => `${esc(e.slot)}: <b>${esc(e.name)}</b>`).join(" · ") : `<span style="color:var(--dim)">-</span>`}</td></tr>
-          <tr><td style="color:var(--dim)">Pet</td><td>${L.pet ? `<b class="r-${esc(L.pet.tier)}">${esc(L.pet.name)}</b> lvl ${L.pet.level}` : `<span style="color:var(--med)">no suitable combat pet</span>`}</td></tr>
-        </table>
-        <div class="sub" style="margin-top:6px">${esc(L.note)}</div>
+        ${(L.weapon || L.armorPieces.length || L.equipment.length) ? `<div class="grid" style="margin-top:10px">
+          ${L.weapon ? item(L.weapon, "Weapon") : ""}
+          ${L.armorPieces.map(p => item(p, "Armor")).join("")}
+          ${L.equipment.map(e => item(e.item, e.slot)).join("")}
+        </div>` : ""}
+        <div class="sub" style="margin-top:8px">
+          ${L.weapon ? "" : `<div style="color:var(--med)">Weapon: ${esc(L.weaponHint || "use your strongest melee")}</div>`}
+          ${L.armor ? `<div>Set: <b>${esc(L.armor.name)}</b> (${L.armor.pieces}/4 owned)${L.armor.why ? ` - ${esc(L.armor.why)}` : ""}</div>` : `<div style="color:var(--med)">Armor: no matching set owned - use your best defensive set</div>`}
+          <div>Pet: ${L.pet ? `<b class="r-${esc(L.pet.tier)}">${esc(L.pet.name)}</b> lvl ${L.pet.level}` : `<span style="color:var(--med)">no suitable combat pet</span>`}</div>
+          <div style="margin-top:4px">${esc(L.note)}</div>
+        </div>
       </div>`;
     }
   }
@@ -322,14 +333,9 @@ function render() {
   }
 
   // ---- Gear
-  const item = it => `<div class="card item">
-      <div class="name"><span>${mc(it.name)}</span></div>
-      <div class="sub">${it.reforge ? cap(it.reforge) + " · " : ""}${it.rarity ? `<span class="r-${esc(it.rarity)}">${esc(it.rarity)}</span>` : ""}${it.recombobulated ? " · recombed" : ""}${it.hotPotato ? ` · HPB ${it.hotPotato}` : ""}</div>
-      <div class="tip">${mcTip(it.lore)}</div>
-    </div>`;
   html += `<section id="gear"><h2>Gear</h2><div class="hint">Hover a piece to see its full in-game tooltip. Wardrobe holds ${D.gear.wardrobePieces} more piece(s).</div>`;
-  html += `<h3 style="margin:8px 0;color:var(--dim);font-size:14px">WORN ARMOR</h3><div class="grid">${D.gear.armor.map(item).join("") || `<p class="hint">No armor data (API off or nothing equipped).</p>`}</div>`;
-  html += `<h3 style="margin:16px 0 8px;color:var(--dim);font-size:14px">EQUIPMENT</h3><div class="grid">${D.gear.equipment.map(item).join("") || `<p class="hint">No equipment data.</p>`}</div></section>`;
+  html += `<h3 style="margin:8px 0;color:var(--dim);font-size:14px">WORN ARMOR</h3><div class="grid">${D.gear.armor.map(it => item(it)).join("") || `<p class="hint">No armor data (API off or nothing equipped).</p>`}</div>`;
+  html += `<h3 style="margin:16px 0 8px;color:var(--dim);font-size:14px">EQUIPMENT</h3><div class="grid">${D.gear.equipment.map(it => item(it)).join("") || `<p class="hint">No equipment data.</p>`}</div></section>`;
 
   // ---- Gear by Activity (deep storage scan)
   const GR = D.gearReview;
