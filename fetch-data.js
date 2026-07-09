@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.6.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.7.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -253,6 +253,30 @@ async function main() {
   }
 
   // ---------------- Slayers ----------------
+  // unlock chain verified against the wiki: each slayer opens by defeating a
+  // specific tier of the previous one (vampire opens via Rift progression)
+  const SLAYER_PREREQ = {
+    zombie: null,
+    spider: { boss: "zombie", tier: 2, label: "Revenant Horror" },
+    wolf: { boss: "spider", tier: 2, label: "Tarantula Broodfather" },
+    enderman: { boss: "wolf", tier: 4, label: "Sven Packmaster" },
+    blaze: { boss: "enderman", tier: 3, label: "Voidgloom Seraph" },
+    vampire: { special: "Progress the Rift dimension and secure its Timecharm" },
+  };
+  const tierKills = (boss, tier) => Number(slayerBosses[boss]?.bossKills?.[String(tier - 1)] ?? 0);
+  const slayerUnlocked = (boss) => {
+    const p = SLAYER_PREREQ[boss];
+    if (!p) return true;
+    if ((slayerBosses[boss]?.xp ?? 0) > 0) return true; // already has XP = clearly unlocked
+    if (p.special) return false;
+    return tierKills(p.boss, p.tier) >= 1;
+  };
+  const slayerLockText = (boss) => {
+    const p = SLAYER_PREREQ[boss];
+    if (!p) return null;
+    return p.special || `Defeat a Tier ${["I", "II", "III", "IV", "V"][p.tier - 1]} ${p.label} to unlock`;
+  };
+
   const slayerMeta = {
     zombie: { target: 5, unlock: "Revenant gear, the Reaper Falchion line and key crafting recipes (e.g. for late-game swords)" },
     spider: { target: 4, unlock: "Tarantula gear and toxic arrow poison recipes" },
@@ -271,9 +295,15 @@ async function main() {
       if (boss === "zombie" && combatLvl >= 15) pr = 1;
       if ((boss === "enderman" || boss === "blaze") && combatLvl < 30) pr = 3;
       if (boss === "vampire") pr = 3;
-      rec(pr, "Slayers", `${boss[0].toUpperCase() + boss.slice(1)} Slayer ${lvl} → ${meta.target}`,
-        `Level ${meta.target} unlocks ${meta.unlock}.`,
-        "Do the highest tier you can complete in ~2-3 minutes reliably; on Ironman the RNG drops along the way are half the reward.");
+      if (!slayerUnlocked(boss)) {
+        rec(pr, "Slayers", `Unlock ${boss[0].toUpperCase() + boss.slice(1)} Slayer first`,
+          `This slayer is still locked. Leveling it to ${meta.target} later unlocks ${meta.unlock}.`,
+          `${slayerLockText(boss)}.`);
+      } else {
+        rec(pr, "Slayers", `${boss[0].toUpperCase() + boss.slice(1)} Slayer ${lvl} → ${meta.target}`,
+          `Level ${meta.target} unlocks ${meta.unlock}.`,
+          "Do the highest tier you can complete in ~2-3 minutes reliably; on Ironman the RNG drops along the way are half the reward.");
+      }
     }
   }
 
@@ -879,6 +909,7 @@ async function main() {
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
       weapon, weaponHint: weapon ? null : k.weaponHint, armor, pet, equipment, note: k.note,
+      locked: !slayerUnlocked(k.boss), unlock: slayerLockText(k.boss),
     };
   });
 
@@ -1181,7 +1212,13 @@ async function main() {
     },
     skills,
     slayers: Object.fromEntries(
-      Object.entries(slayerBosses).map(([k, v]) => [k, { level: v.level, maxLevel: v.maxLevel, xp: v.xp, xpForNext: v.xpForNext, progress: v.progress }])
+      ["zombie", "spider", "wolf", "enderman", "blaze", "vampire"].map((k) => {
+        const v = slayerBosses[k] || {};
+        return [k, {
+          level: v.level ?? 0, maxLevel: v.maxLevel ?? 9, xp: v.xp ?? 0, xpForNext: v.xpForNext ?? null, progress: v.progress ?? 0,
+          locked: !slayerUnlocked(k), unlock: slayerLockText(k),
+        }];
+      })
     ),
     slayerTotalXp: member.stats?.slayer?.totalXp ?? 0,
     dungeons: {
