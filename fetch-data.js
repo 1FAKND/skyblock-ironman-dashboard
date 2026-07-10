@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.9.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.9.1"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -858,13 +858,32 @@ async function main() {
   // Returns the best owned pet with its reason, an owned alternative, and the
   // unowned upgrade goal if something better exists.
   const PET_OBTAIN = { ENDER_DRAGON: "eggs drop from End dragon fights (damage placement/RNG) - Ironman-obtainable" };
+  // entries may carry `matchup`: a claim that this pet genuinely BEATS the
+  // generic pick for this fight - but only once Legendary and well-leveled.
+  // Qualified matchup pets are promoted to the top pick; unqualified ones get
+  // an honest "would be #1 at Legendary lvl 80+" note instead.
+  const petQualified = (p) => ["LEGENDARY", "MYTHIC"].includes(p.tier) && p.level >= 80;
   const pickPets = (ranked) => {
-    const owned = ranked.filter((p) => petByType[p.type]);
-    const pick = owned[0] ? { ...owned[0], ...(({ tier, level }) => ({ tier, level }))(petByType[owned[0].type]), name: nice(owned[0].type) } : null;
-    const alt = owned[1] ? { name: nice(owned[1].type), level: petByType[owned[1].type].level, tier: petByType[owned[1].type].tier, why: owned[1].why } : null;
+    let owned = ranked.filter((p) => petByType[p.type]);
+    const promoted = owned.filter((e) => e.matchup && petQualified(petByType[e.type]));
+    if (promoted.length) {
+      const rest = owned.filter((e) => !promoted.includes(e));
+      // an owned Ender Dragon still outranks matchup promotions (Superior beats niches)
+      const edrag = rest.filter((e) => e.type === "ENDER_DRAGON");
+      owned = [...edrag, ...promoted, ...rest.filter((e) => e.type !== "ENDER_DRAGON")];
+    }
+    const deco = (e, extraWhy) => ({ name: nice(e.type), tier: petByType[e.type].tier, level: petByType[e.type].level, why: extraWhy || e.why });
+    const pick = owned[0] ? deco(owned[0], owned[0].matchup && petQualified(petByType[owned[0].type]) ? owned[0].matchup : null) : null;
+    let alt = owned[1] ? deco(owned[1]) : null;
+    if (alt && owned[1].matchup && !petQualified(petByType[owned[1].type])) {
+      alt.condition = `At LEGENDARY level 80+ this would overtake the ${pick.name} for this fight: ${owned[1].matchup}`;
+    }
+    const conditionals = owned.slice(2)
+      .filter((e) => e.matchup && !petQualified(petByType[e.type]))
+      .map((e) => ({ name: nice(e.type), tier: petByType[e.type].tier, level: petByType[e.type].level, text: e.matchup }));
     const goalEntry = pick ? ranked.slice(0, ranked.findIndex((p) => p.type === owned[0].type)).find((p) => !petByType[p.type]) : ranked[0];
     const goal = goalEntry ? { name: nice(goalEntry.type), why: goalEntry.why, obtain: PET_OBTAIN[goalEntry.type] || null } : null;
-    return { pick, alt, goal };
+    return { pick, alt, goal, conditionals };
   };
   const EQUIP_SLOTS = { // per-slot candidates, best first (generic combat)
     Necklace: ["VANQUISHED_MAGMA_NECKLACE", "ENDER_NECKLACE", "THUNDERBOLT_NECKLACE"],
@@ -895,7 +914,7 @@ async function main() {
       pets: [
         { type: "ENDER_DRAGON", why: "Superior boosts ALL combat stats - best general boss pet" },
         { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets - highest damage if well-leveled" },
-        { type: "TARANTULA", why: "Webbed Cells resists the boss's anti-healing + bonus spider Combat XP - swap in if yours is leveled" },
+        { type: "TARANTULA", why: "Webbed Cells resists the boss's anti-healing + bonus spider Combat XP", matchup: "anti-heal resistance + spider bonuses beat a generic damage pet against the Broodfather (upgrade Epic → Legendary at Kat)" },
         { type: "WOLF", why: "Crit Damage + Combat Wisdom for faster leveling" },
       ],
       note: "Watch the boss's Voodoo Doll phase - break it fast or heal through it.",
@@ -909,7 +928,7 @@ async function main() {
         { type: "ENDER_DRAGON", why: "Superior boosts ALL combat stats - best general boss pet" },
         { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets - top owned damage" },
         { type: "WOLF", why: "Alpha Dog: take less damage FROM wolves - swap in if Sven is killing you" },
-        { type: "HOUND", why: "bonus Combat XP against wolves - great for leveling this slayer once the pet itself is leveled" },
+        { type: "HOUND", why: "attack speed + Ferocity, and bonus Combat XP against wolves", matchup: "for leveling this slayer (XP/hour), its bonus wolf Combat XP beats a generic damage pet" },
       ],
       note: "Mastiff + Pooch Sword scale together: the HP stack feeds the sword's damage.",
     },
@@ -945,12 +964,12 @@ async function main() {
     const lvl = slayerLvl(k.boss);
     const weaponId = bestOwnedId(k.weapons);
     const armor = bestOwnedSet(k.sets);
-    const { pick: pet, alt: petAlt, goal: petGoal } = pickPets(k.pets);
+    const { pick: pet, alt: petAlt, goal: petGoal, conditionals: petConditionals } = pickPets(k.pets);
     const slots = { ...EQUIP_SLOTS, ...(k.equipOverride || {}) };
     const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, id: bestOwnedId(ids) })).filter((e) => e.id);
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
-      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, equipment, note: k.note,
+      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, petConditionals, equipment, note: k.note,
       locked: !slayerUnlocked(k.boss), unlock: slayerLockText(k.boss),
     };
   });
