@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.11.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.12.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -900,8 +900,8 @@ async function main() {
   const SLAYER_KITS = [
     {
       boss: "zombie", label: "Revenant Horror (Zombie)", maxTier: 5,
-      weapons: ["AXE_OF_THE_SHREDDED", "REAPER_FALCHION", "REVENANT_FALCHION", "REVENANT_SWORD", "ZOMBIE_KNIGHT_SWORD", "UNDEAD_SWORD"],
-      weaponHint: "Craft the Revenant Falchion from Revenant Flesh (recipe via Maddox) - it does bonus damage to zombies and carries you to T4.",
+      weapons: ["AXE_OF_THE_SHREDDED", "REAPER_SWORD", "REVENANT_SWORD", "ZOMBIE_KNIGHT_SWORD", "UNDEAD_SWORD"],
+      weaponHint: "Craft the Revenant Falchion (unlocked at Zombie 3) - it does bonus damage to zombies; the Reaper Falchion at Zombie 6 upgrades it directly.",
       sets: [{ id: "REAPER", why: "healing-focused, made for this fight" }, { id: "REVENANT" }, { id: "SHADOW_ASSASSIN", why: "strong all-rounder" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }, { id: "HEAVY", why: "raw defense" }],
       pets: [
         { type: "ENDER_DRAGON", why: "Superior boosts ALL combat stats - best general boss pet" },
@@ -910,12 +910,18 @@ async function main() {
         { type: "WOLF", why: "Crit Damage + Combat Wisdom for faster leveling" },
       ],
       note: "Revenants hit hard in melee - sustain (lifesteal weapons) or raw tankiness wins the early tiers.",
-      recipes: [ // NEU-verified unlock levels
+      recipes: [ // unlock levels from the wiki tables, cross-checked with NEU
         { id: "ZOMBIE_RING", req: 2, why: "cheap accessory - start of the zombie chain" },
-        { id: "REVENANT_CHESTPLATE", req: 5, why: "Revenant armor - the tanky sustain set for higher tiers" },
-        { id: "ZOMBIE_ARTIFACT", req: 7, why: "accessory upgrade (needs Revenant Viscera)" },
+        { id: "REVENANT_SWORD", req: 3, why: "Revenant Falchion - your first zombie-specialist weapon, cheap and effective" },
+        { id: "REVENANT_LEGGINGS", req: 4, why: "Revenant armor starts (leggings + boots) - tanky sustain set" },
+        { id: "REVENANT_CHESTPLATE", req: 5, why: "completes the Revenant set" },
+        { id: "DEVOUR_RING", req: 5, why: "combat accessory from cheap materials" },
+        { id: "REAPER_SWORD", req: 6, why: "Reaper Falchion - big weapon upgrade (consumes your Revenant Falchion)" },
+        { id: "ZOMBIE_ARTIFACT", req: 7, why: "accessory upgrade" },
         { id: "REAPER_MASK", req: 7, why: "powerful ability helmet" },
+        { id: "REAPER_CHESTPLATE", req: 7, why: "Reaper armor - healing-focused undead set" },
         { id: "WARDEN_HELMET", req: 8, why: "huge-HP helmet, long-term combat staple" },
+        { id: "REAPER_ORB", req: 8, why: "deployable healing orb" },
         { id: "AXE_OF_THE_SHREDDED", req: 8, why: "endgame zombie weapon with cleave - also a top dungeon melee" },
       ],
     },
@@ -933,10 +939,13 @@ async function main() {
       note: "Watch the boss's Voodoo Doll phase - break it fast or heal through it.",
       recipes: [
         { id: "SPIDER_RING", req: 1, why: "cheap accessory - start of the spider chain" },
-        { id: "TARANTULA_HELMET", req: 5, why: "core spider-slayer helmet" },
+        { id: "RECLUSE_FANG", req: 3, why: "early spider-specialist weapon" },
+        { id: "TARANTULA_HELMET", req: 4, why: "Tarantula armor - the full spider set unlocks here" },
         { id: "SCORPION_FOIL", req: 6, why: "the dedicated spider slayer weapon" },
         { id: "SPIDER_ARTIFACT", req: 6, why: "accessory upgrade (needs Tarantula Silk)" },
         { id: "TARANTULA_TALISMAN", req: 6, why: "boss drop (not a craft) from T3+ bosses" },
+        { id: "TARANTULA_RING", req: 7, why: "upgrades the Tarantula Talisman" },
+        { id: "STING", req: 8, why: "endgame spider sword (with the Primordial gear line)" },
       ],
     },
     {
@@ -952,11 +961,18 @@ async function main() {
       ],
       note: "Mastiff + Pooch Sword scale together: the HP stack feeds the sword's damage.",
       recipes: [
+        { id: "RED_CLAW_TALISMAN", req: 1, why: "start of the wolf accessory chain" },
         { id: "RADIANT_POWER_ORB", req: 2, why: "starter healing orb" },
+        { id: "GOLDEN_TOOTH", req: 2, why: "CRAFTABLE from Wolf Teeth + Enchanted Gold - the currency of every orb/accessory upgrade below" },
+        { id: "MADDOX_BATPHONE", req: 3, why: "call Maddox from anywhere - permanent quality-of-life" },
+        { id: "MASTIFF_CHESTPLATE", req: 4, why: "Mastiff set - the Sven tank armor" },
         { id: "RED_CLAW_RING", req: 5, why: "accessory chain" },
         { id: "RED_CLAW_ARTIFACT", req: 5, why: "accessory upgrade (needs Golden Teeth)" },
         { id: "MANA_FLUX_POWER_ORB", req: 6, why: "major healing + strength orb - a big all-content upgrade over Radiant" },
-        { id: "OVERFLUX_CAPACITOR", req: 6, why: "the endgame orb: crafted from Mana Flux + Soulflow Supercells (Eman slayer materials)" },
+        { id: "HUNTER_TALISMAN", req: 7, why: "combat accessory (64 Golden Teeth)" },
+        { id: "OVERFLUX_CAPACITOR", req: 7, why: "orb component: built from Mana Flux + Soulflow Supercells (Eman materials)" },
+        { id: "OVERFLUX_POWER_ORB", req: 7, why: "the endgame orb (consumes your Mana Flux)" },
+        { id: "PLASMAFLUX_POWER_ORB", req: 8, why: "the best power orb in the game" },
       ],
     },
     {
@@ -972,13 +988,20 @@ async function main() {
       equipOverride: { Cloak: ["ENDER_CLOAK", "VANQUISHED_GHAST_CLOAK"], Belt: ["ENDER_BELT", "IMPLOSION_BELT"], Necklace: ["ENDER_NECKLACE", "VANQUISHED_MAGMA_NECKLACE"], Gloves: ["ENDER_GAUNTLET", "VANQUISHED_GLOWSTONE_GAUNTLET"] },
       note: "Ender gear (armor AND equipment like your Ender Cloak/Belt) has doubled stats in the End - a budget loadout that seriously outperforms its rarity there. Beware the Seraph's beacon phase: break beacons instantly.",
       recipes: [
+        { id: "VOIDWALKER_KATANA", req: 1, why: "tier-1 katana" },
         { id: "SOULFLOW_PILE", req: 2, why: "start of the soulflow economy (accessories + Overflux orb later)" },
+        { id: "LESSER_SOULFLOW_ENGINE", req: 2, why: "passively converts Raw Soulflow while in your accessory bag - get one early" },
         { id: "VOIDEDGE_KATANA", req: 3, why: "tier-2 katana" },
+        { id: "FINAL_DESTINATION_HELMET", req: 4, why: "Final Destination set (pieces at Eman 3-4) - gains stats per Enderman kill; THE set for leveling this slayer" },
+        { id: "SOULFLOW_BATTERY", req: 5, why: "soulflow accessory tier 2" },
+        { id: "SOULFLOW_ENGINE", req: 5, why: "upgraded engine - much faster passive soulflow" },
         { id: "VORPAL_KATANA", req: 5, why: "tier-3 katana - your next weapon jump" },
         { id: "JUJU_SHORTBOW", req: 5, why: "THE Ironman dungeon bow - fixes a missing dungeon weapon in one unlock" },
         { id: "ASPECT_OF_THE_VOID", req: 6, why: "permanent utility teleport (AOTE upgrade)" },
         { id: "ATOMSPLIT_KATANA", req: 6, why: "tier-4 katana" },
-        { id: "TERMINATOR", req: 7, why: "endgame bow" },
+        { id: "SOULFLOW_SUPERCELL", req: 7, why: "soulflow accessory tier 3 + Overflux component" },
+        { id: "ETHERWARP_CONDUIT", req: 7, why: "AOTV upgrade: teleport where you look - massive mobility" },
+        { id: "TERMINATOR", req: 7, why: "endgame bow (with the Ender Relic)" },
       ],
     },
     {
@@ -992,6 +1015,16 @@ async function main() {
         { type: "TIGER", why: "Apex Predator: bonus damage to isolated targets" },
       ],
       note: "From T2 the boss uses elemental attunements (its nametag shows which damage type it takes) - stay mobile and re-read the nametag after each phase.",
+      recipes: [
+        { id: "FIREDUST_DAGGER", req: 2, why: "starter attunement daggers (with Twilight Dagger) - the boss fight is built around switching daggers to match attunements" },
+        { id: "MANA_DISINTEGRATOR", req: 2, why: "utility craft" },
+        { id: "BURSTSTOPPER_TALISMAN", req: 3, why: "survivability accessory vs demon burst damage" },
+        { id: "KINDLEBANE_DAGGER", req: 4, why: "tier-2 daggers (with Mawdredge) - needed for higher-tier bosses" },
+        { id: "DESTRUCTION_CLOAK", req: 5, why: "combat equipment piece" },
+        { id: "PYROCHAOS_DAGGER", req: 6, why: "tier-3 daggers (with Deathripper) - endgame attunement pair" },
+        { id: "BURSTSTOPPER_ARTIFACT", req: 7, why: "upgrades the Burststopper Talisman" },
+        { id: "ANNIHILATION_CLOAK", req: 7, why: "endgame cloak" },
+      ],
     },
   ];
 
@@ -1015,6 +1048,42 @@ async function main() {
     ASPECT_OF_THE_VOID: [["NULL_OVOID", 32], ["ASPECT_OF_THE_END", 1]],
     ATOMSPLIT_KATANA: [["NULL_BLADE", 2], ["VORPAL_KATANA", 1]],
     TERMINATOR: [["TESSELLATED_ENDER_PEARL", 8], ["NULL_BLADE", 3], ["TARANTULA_SILK", 128], ["JUDGEMENT_CORE", 1], ["BRAIDED_GRIFFIN_FEATHER", 4]],
+    REVENANT_SWORD: [["CRYSTALLIZED_HEART", 1], ["UNDEAD_CATALYST", 1], ["UNDEAD_SWORD", 1]],
+    REAPER_SWORD: [["REVIVED_HEART", 1], ["REVENANT_CATALYST", 1], ["REVENANT_SWORD", 1]],
+    DEVOUR_RING: [["ENCHANTED_RAW_CHICKEN", 2], ["ENCHANTED_RAW_SALMON", 8], ["REVENANT_VISCERA", 39]],
+    GOLDEN_TOOTH: [["WOLF_TOOTH", 128], ["ENCHANTED_GOLD", 32]],
+    HUNTER_TALISMAN: [["GOLDEN_TOOTH", 64], ["ENCHANTED_ROTTEN_FLESH", 32]],
+    OVERFLUX_POWER_ORB: [["GOLDEN_TOOTH", 128], ["OVERFLUX_CAPACITOR", 1], ["ENCHANTED_REDSTONE_BLOCK", 24], ["MANA_FLUX_POWER_ORB", 1]],
+    PLASMAFLUX_POWER_ORB: [["ENCHANTED_OBSIDIAN", 256], ["PLASMA_NUCLEUS", 1], ["GOLDEN_TOOTH", 72], ["OVERFLUX_POWER_ORB", 1]],
+    FINAL_DESTINATION_HELMET: [["NULL_OVOID", 3], ["ENCHANTED_REDSTONE", 128]],
+    LESSER_SOULFLOW_ENGINE: [["NULL_OVOID", 6], ["ENCHANTED_EYE_OF_ENDER", 48], ["ENCHANTED_IRON_BLOCK", 8]],
+    SOULFLOW_ENGINE: [["NULL_ATOM", 2], ["LESSER_SOULFLOW_ENGINE", 4], ["NULL_OVOID", 64], ["REFINED_TITANIUM", 12]],
+    SOULFLOW_BATTERY: [["NULL_OVOID", 8], ["SOULFLOW_PILE", 1]],
+    SOULFLOW_SUPERCELL: [["NULL_OVOID", 192], ["NULL_ATOM", 2], ["SOULFLOW_BATTERY", 1]],
+  };
+
+  // owning any of these higher-tier items means the entry is already "done"
+  const SUPERSEDES = {
+    RED_CLAW_TALISMAN: ["RED_CLAW_RING", "RED_CLAW_ARTIFACT"],
+    RED_CLAW_RING: ["RED_CLAW_ARTIFACT"],
+    ZOMBIE_RING: ["ZOMBIE_ARTIFACT"],
+    SPIDER_RING: ["SPIDER_ARTIFACT"],
+    TARANTULA_TALISMAN: ["TARANTULA_RING"],
+    RADIANT_POWER_ORB: ["MANA_FLUX_POWER_ORB", "OVERFLUX_POWER_ORB", "PLASMAFLUX_POWER_ORB"],
+    MANA_FLUX_POWER_ORB: ["OVERFLUX_POWER_ORB", "PLASMAFLUX_POWER_ORB"],
+    OVERFLUX_CAPACITOR: ["OVERFLUX_POWER_ORB", "PLASMAFLUX_POWER_ORB"],
+    OVERFLUX_POWER_ORB: ["PLASMAFLUX_POWER_ORB"],
+    REVENANT_SWORD: ["REAPER_SWORD", "AXE_OF_THE_SHREDDED"],
+    REAPER_SWORD: ["AXE_OF_THE_SHREDDED"],
+    VOIDWALKER_KATANA: ["VOIDEDGE_KATANA", "VORPAL_KATANA", "ATOMSPLIT_KATANA"],
+    VOIDEDGE_KATANA: ["VORPAL_KATANA", "ATOMSPLIT_KATANA"],
+    VORPAL_KATANA: ["ATOMSPLIT_KATANA"],
+    SOULFLOW_PILE: ["SOULFLOW_BATTERY", "SOULFLOW_SUPERCELL"],
+    SOULFLOW_BATTERY: ["SOULFLOW_SUPERCELL"],
+    LESSER_SOULFLOW_ENGINE: ["SOULFLOW_ENGINE"],
+    BURSTSTOPPER_TALISMAN: ["BURSTSTOPPER_ARTIFACT"],
+    FIREDUST_DAGGER: ["KINDLEBANE_DAGGER", "PYROCHAOS_DAGGER"],
+    KINDLEBANE_DAGGER: ["PYROCHAOS_DAGGER"],
   };
 
   const suggestedTier = (lvl, max) => Math.min(max, lvl <= 1 ? 1 : lvl <= 3 ? 2 : lvl <= 5 ? 3 : 4);
@@ -1026,10 +1095,11 @@ async function main() {
     const slots = { ...EQUIP_SLOTS, ...(k.equipOverride || {}) };
     const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, id: bestOwnedId(ids) })).filter((e) => e.id);
     const recipes = (k.recipes || []).map((r) => {
-      const status = ownedIds.has(r.id) ? "owned" : lvl >= r.req ? "unlocked" : "locked";
+      const superseded = !ownedIds.has(r.id) && (SUPERSEDES[r.id] || []).some((s) => ownedIds.has(s));
+      const status = ownedIds.has(r.id) || superseded ? "owned" : lvl >= r.req ? "unlocked" : "locked";
       const mats = status === "owned" ? null : (RECIPE_MATS[r.id] || null) &&
         RECIPE_MATS[r.id].map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }));
-      return { name: nice(r.id), req: r.req, why: r.why, status, mats };
+      return { name: nice(r.id), req: r.req, why: r.why, status, superseded, mats };
     });
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,

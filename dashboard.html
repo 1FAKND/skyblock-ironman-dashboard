@@ -273,7 +273,7 @@ function render() {
         ${(L.recipes || []).length ? `<div style="margin-top:10px">
           <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Recipe roadmap - what to craft as you level</div>
           ${L.recipes.map(r => {
-            const st = r.status === "owned" ? ["✔", "var(--green)", "owned"] :
+            const st = r.status === "owned" ? ["✔", "var(--green)", r.superseded ? "done - you own the upgrade" : "owned"] :
                        r.status === "unlocked" ? ["🔨", "var(--med)", "UNLOCKED - craft it"] :
                        ["🔒", "var(--dim)", `unlocks at LVL ${r.req}`];
             const mats = r.mats ? `<div style="font-size:12px;color:var(--dim);margin:1px 0 4px 22px">needs: ${r.mats.map(m =>
