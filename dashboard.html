@@ -276,7 +276,10 @@ function render() {
             const st = r.status === "owned" ? ["✔", "var(--green)", "owned"] :
                        r.status === "unlocked" ? ["🔨", "var(--med)", "UNLOCKED - craft it"] :
                        ["🔒", "var(--dim)", `unlocks at LVL ${r.req}`];
-            return `<div style="font-size:13px;color:${st[1]}">${st[0]} <b>LVL ${r.req}</b> ${esc(r.name)} <span style="color:var(--dim)">- ${esc(r.why)}</span> <span style="color:${st[1]}">[${st[2]}]</span></div>`;
+            const mats = r.mats ? `<div style="font-size:12px;color:var(--dim);margin:1px 0 4px 22px">needs: ${r.mats.map(m =>
+              `<span style="color:${m.ok ? "var(--green)" : "var(--red)"}">${m.ok ? "✓" : "✗"} ${m.need}x ${esc(m.name)} <span style="color:var(--dim)">(you: ${m.have.toLocaleString("en-US")})</span></span>`
+            ).join(" · ")}</div>` : "";
+            return `<div style="font-size:13px;color:${st[1]}">${st[0]} <b>LVL ${r.req}</b> ${esc(r.name)} <span style="color:var(--dim)">- ${esc(r.why)}</span> <span style="color:${st[1]}">[${st[2]}]</span></div>${mats}`;
           }).join("")}
         </div>` : ""}
       </div>`;

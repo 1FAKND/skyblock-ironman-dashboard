@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.10.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.11.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -840,6 +840,11 @@ async function main() {
   // =================================================================
 
   const slayerLvl = (b) => slayerBosses[b]?.level ?? 0;
+  const sacks = member.sacks || {};
+  const sackOf = (id) => sacks[id] ?? 0;
+  const n = (x) => Math.round(x).toLocaleString("en-US");
+  const countItems = (id) => allItems.filter((i) => i.id === id && i.container !== "museum").length;
+  const matHave = (id) => sackOf(id) + countItems(id);
   // full item objects (with lore) for tooltip display; museum copies excluded
   const fullItemById = {};
   for (const [cname, inv] of Object.entries(invs)) {
@@ -990,6 +995,28 @@ async function main() {
     },
   ];
 
+  // recipe materials, aggregated from the NEU repo (checked 2026-07-09)
+  const RECIPE_MATS = {
+    ZOMBIE_RING: [["REVENANT_FLESH", 64], ["ZOMBIE_TALISMAN", 1]],
+    REVENANT_CHESTPLATE: [["ENCHANTED_DIAMOND", 128], ["REVENANT_VISCERA", 4]],
+    ZOMBIE_ARTIFACT: [["REVENANT_VISCERA", 48], ["ENCHANTED_IRON", 32], ["ENCHANTED_DIAMOND", 16], ["ZOMBIE_RING", 1]],
+    REAPER_MASK: [["REVENANT_VISCERA", 128], ["BEHEADED_HORROR", 1], ["ENCHANTED_STRING", 32], ["REVIVED_HEART", 1]],
+    WARDEN_HELMET: [["REVIVED_HEART", 2], ["WARDEN_HEART", 1], ["ENCHANTED_IRON_BLOCK", 128]],
+    AXE_OF_THE_SHREDDED: [["REVENANT_VISCERA", 256], ["SHARD_OF_THE_SHREDDED", 4], ["REAPER_SWORD", 1]],
+    SPIDER_RING: [["TARANTULA_WEB", 64], ["SPIDER_TALISMAN", 1]],
+    TARANTULA_HELMET: [["TARANTULA_SILK", 3], ["ENCHANTED_IRON", 128]],
+    SCORPION_FOIL: [["TARANTULA_SILK", 32], ["TARANTULA_CATALYST", 8], ["TARANTULA_FANG", 1]],
+    SPIDER_ARTIFACT: [["TARANTULA_SILK", 32], ["ENCHANTED_EMERALD", 32], ["SPIDER_RING", 1]],
+    RED_CLAW_ARTIFACT: [["ENCHANTED_LEATHER", 256], ["GOLDEN_TOOTH", 54], ["RED_CLAW_RING", 1], ["RED_CLAW_EGG", 1]],
+    MANA_FLUX_POWER_ORB: [["ENCHANTED_LAPIS_LAZULI_BLOCK", 4], ["GOLDEN_TOOTH", 32], ["RADIANT_POWER_ORB", 1]],
+    SOULFLOW_PILE: [["NULL_SPHERE", 90]],
+    VORPAL_KATANA: [["NULL_EDGE", 1], ["NULL_OVOID", 8], ["REFINED_MITHRIL", 8], ["VOIDEDGE_KATANA", 1]],
+    JUJU_SHORTBOW: [["ENCHANTED_EYE_OF_ENDER", 32], ["ENCHANTED_STRING", 192], ["NULL_OVOID", 32], ["ENCHANTED_QUARTZ_BLOCK", 32]],
+    ASPECT_OF_THE_VOID: [["NULL_OVOID", 32], ["ASPECT_OF_THE_END", 1]],
+    ATOMSPLIT_KATANA: [["NULL_BLADE", 2], ["VORPAL_KATANA", 1]],
+    TERMINATOR: [["TESSELLATED_ENDER_PEARL", 8], ["NULL_BLADE", 3], ["TARANTULA_SILK", 128], ["JUDGEMENT_CORE", 1], ["BRAIDED_GRIFFIN_FEATHER", 4]],
+  };
+
   const suggestedTier = (lvl, max) => Math.min(max, lvl <= 1 ? 1 : lvl <= 3 ? 2 : lvl <= 5 ? 3 : 4);
   const slayerLoadouts = SLAYER_KITS.map((k) => {
     const lvl = slayerLvl(k.boss);
@@ -998,10 +1025,12 @@ async function main() {
     const { pick: pet, alt: petAlt, goal: petGoal, conditionals: petConditionals } = pickPets(k.pets);
     const slots = { ...EQUIP_SLOTS, ...(k.equipOverride || {}) };
     const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, id: bestOwnedId(ids) })).filter((e) => e.id);
-    const recipes = (k.recipes || []).map((r) => ({
-      name: nice(r.id), req: r.req, why: r.why,
-      status: ownedIds.has(r.id) ? "owned" : lvl >= r.req ? "unlocked" : "locked",
-    }));
+    const recipes = (k.recipes || []).map((r) => {
+      const status = ownedIds.has(r.id) ? "owned" : lvl >= r.req ? "unlocked" : "locked";
+      const mats = status === "owned" ? null : (RECIPE_MATS[r.id] || null) &&
+        RECIPE_MATS[r.id].map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }));
+      return { name: nice(r.id), req: r.req, why: r.why, status, mats };
+    });
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
       weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, petConditionals, equipment, recipes, note: k.note,
@@ -1031,11 +1060,7 @@ async function main() {
   //   permanent accessories > daily tools > armor (gets replaced) > hoarding
   // =================================================================
 
-  const sacks = member.sacks || {};
-  const sackOf = (id) => sacks[id] ?? 0;
-  const n = (x) => Math.round(x).toLocaleString("en-US");
   const collTier = (name) => member.collectionTiers?.[name] ?? 0;
-  const countItems = (id) => allItems.filter((i) => i.id === id && i.container !== "museum").length;
   const potm = member.stats?.mining?.peakOfTheMountainLevel ?? 0;
 
   // check builders: gate=true means a hard unlock (slayer/collection/base item)
