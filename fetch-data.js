@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.9.1"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.10.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -665,7 +665,7 @@ async function main() {
       "At your Catacombs level a proper dungeon weapon is a bigger damage jump than any armor swap.",
       "Farm Floor 5 for the Livid Dagger (also drops Shadow Assassin armor), or Floor 4 for a Spirit Sceptre. Both are classic Ironman targets.");
   }
-  const KATANAS = ["VOIDEDGE_KATANA", "VOIDWALKER_KATANA", "VORPAL_KATANA", "ATOMSPLIT_KATANA"];
+  const KATANAS = ["VOIDWALKER_KATANA", "VOIDEDGE_KATANA", "VORPAL_KATANA", "ATOMSPLIT_KATANA"]; // ascending; reqs eman 1/3/5/6 (NEU-verified)
   const katanaIdx = KATANAS.reduce((best, id, i) => (usableIds.has(id) ? i : best), -1);
   if (katanaIdx >= 0 && katanaIdx < KATANAS.length - 1 && (slayerBosses.enderman?.level ?? 0) >= 3) {
     rec(2, "Gear", `Upgrade your ${nice(KATANAS[katanaIdx])} → ${nice(KATANAS[katanaIdx + 1])}`,
@@ -905,6 +905,14 @@ async function main() {
         { type: "WOLF", why: "Crit Damage + Combat Wisdom for faster leveling" },
       ],
       note: "Revenants hit hard in melee - sustain (lifesteal weapons) or raw tankiness wins the early tiers.",
+      recipes: [ // NEU-verified unlock levels
+        { id: "ZOMBIE_RING", req: 2, why: "cheap accessory - start of the zombie chain" },
+        { id: "REVENANT_CHESTPLATE", req: 5, why: "Revenant armor - the tanky sustain set for higher tiers" },
+        { id: "ZOMBIE_ARTIFACT", req: 7, why: "accessory upgrade (needs Revenant Viscera)" },
+        { id: "REAPER_MASK", req: 7, why: "powerful ability helmet" },
+        { id: "WARDEN_HELMET", req: 8, why: "huge-HP helmet, long-term combat staple" },
+        { id: "AXE_OF_THE_SHREDDED", req: 8, why: "endgame zombie weapon with cleave - also a top dungeon melee" },
+      ],
     },
     {
       boss: "spider", label: "Tarantula Broodfather (Spider)", maxTier: 4,
@@ -918,6 +926,13 @@ async function main() {
         { type: "WOLF", why: "Crit Damage + Combat Wisdom for faster leveling" },
       ],
       note: "Watch the boss's Voodoo Doll phase - break it fast or heal through it.",
+      recipes: [
+        { id: "SPIDER_RING", req: 1, why: "cheap accessory - start of the spider chain" },
+        { id: "TARANTULA_HELMET", req: 5, why: "core spider-slayer helmet" },
+        { id: "SCORPION_FOIL", req: 6, why: "the dedicated spider slayer weapon" },
+        { id: "SPIDER_ARTIFACT", req: 6, why: "accessory upgrade (needs Tarantula Silk)" },
+        { id: "TARANTULA_TALISMAN", req: 6, why: "boss drop (not a craft) from T3+ bosses" },
+      ],
     },
     {
       boss: "wolf", label: "Sven Packmaster (Wolf)", maxTier: 4,
@@ -931,11 +946,18 @@ async function main() {
         { type: "HOUND", why: "attack speed + Ferocity, and bonus Combat XP against wolves", matchup: "for leveling this slayer (XP/hour), its bonus wolf Combat XP beats a generic damage pet" },
       ],
       note: "Mastiff + Pooch Sword scale together: the HP stack feeds the sword's damage.",
+      recipes: [
+        { id: "RADIANT_POWER_ORB", req: 2, why: "starter healing orb" },
+        { id: "RED_CLAW_RING", req: 5, why: "accessory chain" },
+        { id: "RED_CLAW_ARTIFACT", req: 5, why: "accessory upgrade (needs Golden Teeth)" },
+        { id: "MANA_FLUX_POWER_ORB", req: 6, why: "major healing + strength orb - a big all-content upgrade over Radiant" },
+        { id: "OVERFLUX_CAPACITOR", req: 6, why: "the endgame orb: crafted from Mana Flux + Soulflow Supercells (Eman slayer materials)" },
+      ],
     },
     {
       boss: "enderman", label: "Voidgloom Seraph (Enderman)", maxTier: 4,
-      weapons: ["ATOMSPLIT_KATANA", "VORPAL_KATANA", "VOIDWALKER_KATANA", "VOIDEDGE_KATANA"],
-      weaponHint: "Katanas do bonus damage to Endermen - always run the highest you own. Voidwalker only needs Eman Slayer 1 + materials.",
+      weapons: ["ATOMSPLIT_KATANA", "VORPAL_KATANA", "VOIDEDGE_KATANA", "VOIDWALKER_KATANA"],
+      weaponHint: "Katanas do bonus damage to Endermen - always run the highest you own. Chain: Voidwalker (Eman 1) → Voidedge (3) → Vorpal (5) → Atomsplit (6).",
       sets: [{ id: "FINAL_DESTINATION", why: "built for enderman grinding" }, { id: "SHADOW_ASSASSIN" }, { id: "END", name: "Ender Armor", why: "ALL stats x2 while on the End Island - beats fancier sets there" }, { id: "SUPERIOR_DRAGON" }, { id: "ADAPTIVE" }],
       pets: [
         { type: "ENDER_DRAGON", why: "End Strike: bonus damage to Ender mobs + Superior all-stats - THE Voidgloom pet" },
@@ -944,6 +966,15 @@ async function main() {
       ],
       equipOverride: { Cloak: ["ENDER_CLOAK", "VANQUISHED_GHAST_CLOAK"], Belt: ["ENDER_BELT", "IMPLOSION_BELT"], Necklace: ["ENDER_NECKLACE", "VANQUISHED_MAGMA_NECKLACE"], Gloves: ["ENDER_GAUNTLET", "VANQUISHED_GLOWSTONE_GAUNTLET"] },
       note: "Ender gear (armor AND equipment like your Ender Cloak/Belt) has doubled stats in the End - a budget loadout that seriously outperforms its rarity there. Beware the Seraph's beacon phase: break beacons instantly.",
+      recipes: [
+        { id: "SOULFLOW_PILE", req: 2, why: "start of the soulflow economy (accessories + Overflux orb later)" },
+        { id: "VOIDEDGE_KATANA", req: 3, why: "tier-2 katana" },
+        { id: "VORPAL_KATANA", req: 5, why: "tier-3 katana - your next weapon jump" },
+        { id: "JUJU_SHORTBOW", req: 5, why: "THE Ironman dungeon bow - fixes a missing dungeon weapon in one unlock" },
+        { id: "ASPECT_OF_THE_VOID", req: 6, why: "permanent utility teleport (AOTE upgrade)" },
+        { id: "ATOMSPLIT_KATANA", req: 6, why: "tier-4 katana" },
+        { id: "TERMINATOR", req: 7, why: "endgame bow" },
+      ],
     },
     {
       boss: "blaze", label: "Inferno Demonlord (Blaze)", maxTier: 4,
@@ -967,12 +998,27 @@ async function main() {
     const { pick: pet, alt: petAlt, goal: petGoal, conditionals: petConditionals } = pickPets(k.pets);
     const slots = { ...EQUIP_SLOTS, ...(k.equipOverride || {}) };
     const equipment = Object.entries(slots).map(([slot, ids]) => ({ slot, id: bestOwnedId(ids) })).filter((e) => e.id);
+    const recipes = (k.recipes || []).map((r) => ({
+      name: nice(r.id), req: r.req, why: r.why,
+      status: ownedIds.has(r.id) ? "owned" : lvl >= r.req ? "unlocked" : "locked",
+    }));
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
-      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, petConditionals, equipment, note: k.note,
+      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, petConditionals, equipment, recipes, note: k.note,
       locked: !slayerUnlocked(k.boss), unlock: slayerLockText(k.boss),
     };
   });
+
+  // unlocked-but-uncrafted slayer recipes = free progression sitting on the table
+  for (const L of slayerLoadouts) {
+    if (L.locked) continue;
+    const ready = L.recipes.filter((r) => r.status === "unlocked");
+    if (ready.length) {
+      rec(2, "Slayers", `${L.label.split(" (")[0]}: ${ready.length} unlocked recipe(s) you haven't made`,
+        `Your slayer level already unlocks: ${ready.slice(0, 3).map((r) => r.name).join(", ")}${ready.length > 3 ? ", …" : ""}. These are the exact items that prevent progression brick walls.`,
+        "See the recipe roadmap on this slayer's loadout card for the order and reasons.");
+    }
+  }
 
   // =================================================================
   // CRAFT PRIORITIES - gate-checked against YOUR profile.
