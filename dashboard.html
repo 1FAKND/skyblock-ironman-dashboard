@@ -251,7 +251,7 @@ function render() {
     for (const L of D.slayerLoadouts) {
       html += `<div class="card" style="margin-bottom:10px;padding:12px 16px">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline">
-          <span style="font-weight:700">${esc(L.label)}${L.locked ? ` <span style="color:var(--red);font-size:12px">🔒 LOCKED</span>` : ""}</span>
+          <span style="font-weight:700">${esc(L.label)}${L.wikiUrl ? ` <a href="${esc(L.wikiUrl)}" target="_blank" rel="noopener" style="color:var(--dim);font-size:11px;text-decoration:none">wiki ↗</a>` : ""}${L.locked ? ` <span style="color:var(--red);font-size:12px">🔒 LOCKED</span>` : ""}</span>
           <span style="color:var(--dim);font-size:13px">${L.locked ? "" : `your level ${L.level} → farm Tier ${L.suggestedTier}${L.suggestedTier < L.maxTier ? ` (of ${L.maxTier})` : " (max)"}`}</span>
         </div>
         ${L.locked ? `<div class="sub" style="color:var(--red);margin-top:4px">${esc(L.unlock || "")}. The kit below is for once it's unlocked.</div>` : ""}
@@ -271,7 +271,8 @@ function render() {
           <div style="margin-top:4px">${esc(L.note)}</div>
         </div>
         ${(L.recipes || []).length ? `<div style="margin-top:10px">
-          <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Recipe roadmap - what to craft as you level</div>
+          <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Recipe roadmap - ① craft first · ② next · ③ optional</div>
+          ${L.focus ? `<div style="font-size:13px;color:var(--gold);margin-bottom:4px">🎯 Craft first: <b>${esc(L.focus.name)}</b> - ${esc(L.focus.why)}</div>` : ""}
           ${L.recipes.map(r => {
             const st = r.status === "owned" ? ["✔", "var(--green)", r.superseded ? "done - you own the upgrade" : "owned"] :
                        r.status === "unlocked" ? ["🔨", "var(--med)", "UNLOCKED - craft it"] :
@@ -279,7 +280,9 @@ function render() {
             const mats = r.mats ? `<div style="font-size:12px;color:var(--dim);margin:1px 0 4px 22px">needs: ${r.mats.map(m =>
               `<span style="color:${m.ok ? "var(--green)" : "var(--red)"}">${m.ok ? "✓" : "✗"} ${m.need}x ${esc(m.name)} <span style="color:var(--dim)">(you: ${m.have.toLocaleString("en-US")})</span></span>`
             ).join(" · ")}</div>` : "";
-            return `<div style="font-size:13px;color:${st[1]}">${st[0]} <b>LVL ${r.req}</b> ${esc(r.name)} <span style="color:var(--dim)">- ${esc(r.why)}</span> <span style="color:${st[1]}">[${st[2]}]</span></div>${mats}`;
+            const prioChip = `<span style="color:${r.prio === 1 ? "var(--gold)" : "var(--dim)"}">${["①", "②", "③"][(r.prio || 2) - 1]}</span>`;
+            const nm = r.wiki ? `<a href="${esc(r.wiki)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline dotted;text-underline-offset:2px">${esc(r.name)}</a>` : esc(r.name);
+            return `<div style="font-size:13px;color:${st[1]}">${st[0]} ${prioChip} <b>LVL ${r.req}</b> ${nm} <span style="color:var(--dim)">- ${esc(r.why)}</span> <span style="color:${st[1]}">[${st[2]}]</span></div>${mats}`;
           }).join("")}
         </div>` : ""}
       </div>`;

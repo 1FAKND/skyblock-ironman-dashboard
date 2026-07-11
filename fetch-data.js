@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.12.2"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.13.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -911,18 +911,18 @@ async function main() {
       ],
       note: "Revenants hit hard in melee - sustain or raw HP wins.",
       recipes: [ // unlock levels from the wiki tables, cross-checked with NEU
-        { id: "ZOMBIE_RING", req: 2, why: "starter accessory" },
-        { id: "REVENANT_SWORD", req: 3, why: "Revenant Falchion - first zombie weapon" },
-        { ids: ["REVENANT_LEGGINGS", "REVENANT_BOOTS"], name: "Revenant Leggings + Boots", req: 4, why: "tanky set starts" },
-        { id: "REVENANT_CHESTPLATE", req: 5, why: "completes the Revenant set" },
-        { id: "DEVOUR_RING", req: 5, why: "cheap combat accessory" },
-        { id: "REAPER_SWORD", req: 6, why: "Reaper Falchion (consumes the Revenant)" },
-        { id: "ZOMBIE_ARTIFACT", req: 7, why: "accessory upgrade" },
-        { id: "REAPER_MASK", req: 7, why: "strong ability helmet" },
-        { id: "REAPER_CHESTPLATE", req: 7, why: "healing-focused set" },
-        { id: "WARDEN_HELMET", req: 8, why: "huge-HP helmet" },
-        { id: "REAPER_ORB", req: 8, why: "deployable healing orb" },
-        { id: "AXE_OF_THE_SHREDDED", req: 8, why: "endgame cleave weapon, great in dungeons" },
+        { id: "ZOMBIE_RING", req: 2, prio: 3, why: "starter accessory" },
+        { id: "REVENANT_SWORD", name: "Revenant Falchion", req: 3, prio: 1, why: "first zombie weapon - biggest early jump" },
+        { ids: ["REVENANT_LEGGINGS", "REVENANT_BOOTS"], name: "Revenant Leggings + Boots", wiki: "Revenant Armor", req: 4, prio: 2, why: "tanky set starts" },
+        { id: "REVENANT_CHESTPLATE", wiki: "Revenant Armor", req: 5, prio: 2, why: "completes the Revenant set" },
+        { id: "DEVOUR_RING", req: 5, prio: 3, why: "cheap combat accessory" },
+        { id: "REAPER_SWORD", name: "Reaper Falchion", req: 6, prio: 1, why: "weapon upgrade (consumes the Revenant) - before anything else at 6" },
+        { id: "ZOMBIE_ARTIFACT", req: 7, prio: 2, why: "accessory upgrade" },
+        { id: "REAPER_MASK", req: 7, prio: 2, why: "strong ability helmet" },
+        { id: "REAPER_CHESTPLATE", wiki: "Reaper Armor", req: 7, prio: 3, why: "healing set - situational" },
+        { id: "WARDEN_HELMET", req: 8, prio: 2, why: "huge-HP helmet" },
+        { id: "REAPER_ORB", req: 8, prio: 3, why: "deployable healing orb" },
+        { id: "AXE_OF_THE_SHREDDED", req: 8, prio: 1, why: "endgame cleave weapon - the level-8 prize" },
       ],
     },
     {
@@ -938,14 +938,14 @@ async function main() {
       ],
       note: "Watch the boss's Voodoo Doll phase - break it fast or heal through it.",
       recipes: [
-        { id: "SPIDER_RING", req: 1, why: "starter accessory" },
-        { id: "RECLUSE_FANG", req: 3, why: "early spider weapon" },
-        { ids: ["TARANTULA_HELMET", "TARANTULA_CHESTPLATE", "TARANTULA_LEGGINGS", "TARANTULA_BOOTS"], name: "Tarantula set", req: 5, why: "the spider armor set (pieces at 4-5)" },
-        { id: "SCORPION_FOIL", req: 6, why: "the spider slayer weapon" },
-        { id: "SPIDER_ARTIFACT", req: 6, why: "accessory upgrade" },
-        { id: "TARANTULA_TALISMAN", req: 6, why: "boss drop, not a craft" },
-        { id: "TARANTULA_RING", req: 7, why: "upgrades the talisman" },
-        { id: "STING", req: 8, why: "endgame sword" },
+        { id: "SPIDER_RING", req: 1, prio: 3, why: "starter accessory" },
+        { id: "RECLUSE_FANG", req: 3, prio: 2, why: "early spider weapon" },
+        { ids: ["TARANTULA_HELMET", "TARANTULA_CHESTPLATE", "TARANTULA_LEGGINGS", "TARANTULA_BOOTS"], name: "Tarantula set", wiki: "Tarantula Armor", req: 5, prio: 2, why: "the spider armor set (pieces at 4-5)" },
+        { id: "SCORPION_FOIL", req: 6, prio: 1, why: "the spider weapon - first pick at 6" },
+        { id: "SPIDER_ARTIFACT", req: 6, prio: 2, why: "accessory upgrade" },
+        { id: "TARANTULA_TALISMAN", req: 6, prio: 2, why: "boss drop, not a craft" },
+        { id: "TARANTULA_RING", req: 7, prio: 3, why: "upgrades the talisman" },
+        { id: "STING", req: 8, prio: 1, why: "endgame sword" },
       ],
     },
     {
@@ -961,18 +961,18 @@ async function main() {
       ],
       note: "Mastiff + Pooch Sword scale together: the HP stack feeds the sword's damage.",
       recipes: [
-        { id: "RED_CLAW_TALISMAN", req: 1, why: "starter accessory" },
-        { id: "RADIANT_POWER_ORB", req: 2, why: "starter healing orb" },
-        { id: "GOLDEN_TOOTH", req: 2, why: "craft from Wolf Teeth + Ench Gold - funds every upgrade below" },
-        { id: "MADDOX_BATPHONE", req: 3, why: "call Maddox from anywhere" },
-        { ids: ["MASTIFF_HELMET", "MASTIFF_CHESTPLATE", "MASTIFF_LEGGINGS", "MASTIFF_BOOTS"], name: "Mastiff set", req: 4, why: "the Sven tank armor" },
-        { id: "RED_CLAW_RING", req: 5, why: "accessory chain" },
-        { id: "RED_CLAW_ARTIFACT", req: 5, why: "accessory upgrade" },
-        { id: "MANA_FLUX_POWER_ORB", req: 6, why: "big orb upgrade over Radiant" },
-        { id: "HUNTER_TALISMAN", req: 7, why: "combat accessory" },
-        { id: "OVERFLUX_CAPACITOR", req: 7, why: "orb component (uses Eman soulflow)" },
-        { id: "OVERFLUX_POWER_ORB", req: 7, why: "endgame orb (consumes Mana Flux)" },
-        { id: "PLASMAFLUX_POWER_ORB", req: 8, why: "best orb in the game" },
+        { id: "RED_CLAW_TALISMAN", req: 1, prio: 3, why: "starter accessory" },
+        { id: "RADIANT_POWER_ORB", req: 2, prio: 2, why: "starter healing orb" },
+        { id: "GOLDEN_TOOTH", req: 2, prio: 1, why: "craft from Wolf Teeth + Ench Gold - funds every upgrade below" },
+        { id: "MADDOX_BATPHONE", req: 3, prio: 2, why: "call Maddox from anywhere" },
+        { ids: ["MASTIFF_HELMET", "MASTIFF_CHESTPLATE", "MASTIFF_LEGGINGS", "MASTIFF_BOOTS"], name: "Mastiff set", wiki: "Mastiff Armor", req: 4, prio: 1, why: "the Sven tank armor - makes every later tier safer" },
+        { id: "RED_CLAW_RING", req: 5, prio: 2, why: "accessory chain" },
+        { id: "RED_CLAW_ARTIFACT", req: 5, prio: 2, why: "accessory upgrade" },
+        { id: "MANA_FLUX_POWER_ORB", req: 6, prio: 1, why: "big orb upgrade - helps every fight in the game" },
+        { id: "HUNTER_TALISMAN", req: 7, prio: 3, why: "combat accessory" },
+        { id: "OVERFLUX_CAPACITOR", req: 7, prio: 2, why: "orb component (uses Eman soulflow)" },
+        { id: "OVERFLUX_POWER_ORB", req: 7, prio: 1, why: "endgame orb (consumes Mana Flux)" },
+        { id: "PLASMAFLUX_POWER_ORB", req: 8, prio: 2, why: "best orb in the game - long-term" },
       ],
     },
     {
@@ -988,20 +988,20 @@ async function main() {
       equipOverride: { Cloak: ["ENDER_CLOAK", "VANQUISHED_GHAST_CLOAK"], Belt: ["ENDER_BELT", "IMPLOSION_BELT"], Necklace: ["ENDER_NECKLACE", "VANQUISHED_MAGMA_NECKLACE"], Gloves: ["ENDER_GAUNTLET", "VANQUISHED_GLOWSTONE_GAUNTLET"] },
       note: "Ender armor AND equipment get 2x stats in the End. Break the Seraph's beacons instantly.",
       recipes: [
-        { id: "VOIDWALKER_KATANA", req: 1, why: "tier-1 katana" },
-        { id: "SOULFLOW_PILE", req: 2, why: "starts the soulflow economy" },
-        { id: "LESSER_SOULFLOW_ENGINE", req: 2, why: "auto-converts Raw Soulflow in your bag" },
-        { id: "VOIDEDGE_KATANA", req: 3, why: "tier-2 katana" },
-        { ids: ["FINAL_DESTINATION_HELMET", "FINAL_DESTINATION_CHESTPLATE", "FINAL_DESTINATION_LEGGINGS", "FINAL_DESTINATION_BOOTS"], name: "Final Destination set", req: 4, why: "stats grow per Enderman kill - the XP-grind set" },
-        { id: "SOULFLOW_BATTERY", req: 5, why: "soulflow accessory tier 2" },
-        { id: "SOULFLOW_ENGINE", req: 5, why: "faster passive soulflow" },
-        { id: "VORPAL_KATANA", req: 5, why: "tier-3 katana" },
-        { id: "JUJU_SHORTBOW", req: 5, why: "THE Ironman dungeon bow" },
-        { id: "ASPECT_OF_THE_VOID", req: 6, why: "permanent utility teleport" },
-        { id: "ATOMSPLIT_KATANA", req: 6, why: "tier-4 katana" },
-        { id: "SOULFLOW_SUPERCELL", req: 7, why: "accessory tier 3 + Overflux part" },
-        { id: "ETHERWARP_CONDUIT", req: 7, why: "teleport-where-you-look AOTV upgrade" },
-        { id: "TERMINATOR", req: 7, why: "endgame bow" },
+        { id: "VOIDWALKER_KATANA", req: 1, prio: 1, why: "tier-1 katana" },
+        { id: "SOULFLOW_PILE", req: 2, prio: 3, why: "starts the soulflow economy" },
+        { id: "LESSER_SOULFLOW_ENGINE", req: 2, prio: 1, why: "auto-converts Raw Soulflow in your bag - earlier = more total soulflow" },
+        { id: "VOIDEDGE_KATANA", req: 3, prio: 1, why: "tier-2 katana" },
+        { ids: ["FINAL_DESTINATION_HELMET", "FINAL_DESTINATION_CHESTPLATE", "FINAL_DESTINATION_LEGGINGS", "FINAL_DESTINATION_BOOTS"], name: "Final Destination set", wiki: "Final Destination Armor", req: 4, prio: 2, why: "stats grow per Enderman kill - the XP-grind set" },
+        { id: "SOULFLOW_BATTERY", req: 5, prio: 3, why: "soulflow accessory tier 2" },
+        { id: "SOULFLOW_ENGINE", req: 5, prio: 2, why: "faster passive soulflow" },
+        { id: "VORPAL_KATANA", req: 5, prio: 1, why: "tier-3 katana - first pick at 5, speeds every kill after" },
+        { id: "JUJU_SHORTBOW", req: 5, prio: 1, why: "THE Ironman dungeon bow - right after the Vorpal" },
+        { id: "ASPECT_OF_THE_VOID", req: 6, prio: 2, why: "permanent utility teleport" },
+        { id: "ATOMSPLIT_KATANA", req: 6, prio: 1, why: "tier-4 katana" },
+        { id: "SOULFLOW_SUPERCELL", req: 7, prio: 2, why: "accessory tier 3 + Overflux part" },
+        { id: "ETHERWARP_CONDUIT", req: 7, prio: 1, why: "teleport-where-you-look AOTV upgrade" },
+        { id: "TERMINATOR", req: 7, prio: 1, why: "endgame bow" },
       ],
     },
     {
@@ -1016,14 +1016,14 @@ async function main() {
       ],
       note: "From T2 the boss uses elemental attunements (its nametag shows which damage type it takes) - stay mobile and re-read the nametag after each phase.",
       recipes: [
-        { id: "FIREDUST_DAGGER", req: 2, why: "starter daggers (w/ Twilight) - the fight requires attunement daggers" },
-        { id: "MANA_DISINTEGRATOR", req: 2, why: "utility craft" },
-        { id: "BURSTSTOPPER_TALISMAN", req: 3, why: "anti-burst survivability accessory" },
-        { id: "KINDLEBANE_DAGGER", req: 4, why: "tier-2 daggers (w/ Mawdredge)" },
-        { id: "DESTRUCTION_CLOAK", req: 5, why: "combat cloak" },
-        { id: "PYROCHAOS_DAGGER", req: 6, why: "tier-3 daggers (w/ Deathripper)" },
-        { id: "BURSTSTOPPER_ARTIFACT", req: 7, why: "talisman upgrade" },
-        { id: "ANNIHILATION_CLOAK", req: 7, why: "endgame cloak" },
+        { id: "FIREDUST_DAGGER", req: 2, prio: 1, why: "starter daggers (w/ Twilight) - the fight requires attunement daggers" },
+        { id: "MANA_DISINTEGRATOR", req: 2, prio: 3, why: "utility craft" },
+        { id: "BURSTSTOPPER_TALISMAN", req: 3, prio: 2, why: "anti-burst survivability accessory" },
+        { id: "KINDLEBANE_DAGGER", req: 4, prio: 1, why: "tier-2 daggers (w/ Mawdredge)" },
+        { id: "DESTRUCTION_CLOAK", req: 5, prio: 3, why: "combat cloak" },
+        { id: "PYROCHAOS_DAGGER", req: 6, prio: 1, why: "tier-3 daggers (w/ Deathripper)" },
+        { id: "BURSTSTOPPER_ARTIFACT", req: 7, prio: 2, why: "talisman upgrade" },
+        { id: "ANNIHILATION_CLOAK", req: 7, prio: 2, why: "endgame cloak" },
       ],
     },
   ];
@@ -1117,12 +1117,19 @@ async function main() {
         }
         if (Object.keys(agg).length) mats = Object.entries(agg).map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }));
       }
-      const name = (r.name || nice(ids[0])) + (ids.length > 1 ? ` (${ownedCount}/${ids.length} pieces)` : "");
-      return { name, req: r.req, why: r.why, status, superseded, mats };
+      const baseName = r.name || nice(ids[0]);
+      const name = baseName + (ids.length > 1 ? ` (${ownedCount}/${ids.length} pieces)` : "");
+      // wiki titles keep small words lowercase ("Aspect of the Void")
+      const wikiTitle = (s) => s.replace(/\b(Of|The|To|In|And)\b/g, (m, w, off) => (off === 0 ? m : m.toLowerCase()));
+      const wiki = "https://hypixelskyblock.minecraft.wiki/w/" + wikiTitle(r.wiki || baseName).replace(/ /g, "_");
+      return { name, req: r.req, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats };
     });
+    // what to craft first among currently-unlocked recipes
+    const focus = recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio || a.req - b.req)[0] || null;
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
-      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, petConditionals, equipment, recipes, note: k.note,
+      weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, petConditionals, equipment, recipes, focus, note: k.note,
+      wikiUrl: "https://hypixelskyblock.minecraft.wiki/w/" + { zombie: "Zombie_Slayer", spider: "Spider_Slayer", wolf: "Wolf_Slayer", enderman: "Enderman_Slayer", blaze: "Blaze_Slayer" }[k.boss],
       locked: !slayerUnlocked(k.boss), unlock: slayerLockText(k.boss),
     };
   });
@@ -1130,11 +1137,11 @@ async function main() {
   // unlocked-but-uncrafted slayer recipes = free progression sitting on the table
   for (const L of slayerLoadouts) {
     if (L.locked) continue;
-    const ready = L.recipes.filter((r) => r.status === "unlocked");
+    const ready = L.recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio || a.req - b.req);
     if (ready.length) {
       rec(2, "Slayers", `${L.label.split(" (")[0]}: ${ready.length} unlocked recipe(s) you haven't made`,
-        `Your slayer level already unlocks: ${ready.slice(0, 3).map((r) => r.name).join(", ")}${ready.length > 3 ? ", …" : ""}. These are the exact items that prevent progression brick walls.`,
-        "See the recipe roadmap on this slayer's loadout card for the order and reasons.");
+        `Craft first: ${ready[0].name} (${ready[0].why}).${ready.length > 1 ? ` Then: ${ready.slice(1, 3).map((r) => r.name).join(", ")}${ready.length > 3 ? ", …" : ""}.` : ""}`,
+        "Priority order and materials are on this slayer's roadmap.");
     }
   }
 
