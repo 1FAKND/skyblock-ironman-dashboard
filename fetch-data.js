@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.12.1"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.12.2"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -1356,7 +1356,7 @@ async function main() {
     SPEED_ARTIFACT: gColl("SUGAR_CANE", 8, "Sugar Cane"), POWER_ARTIFACT: gColl("GEMSTONE_COLLECTION", 10, "Gemstone"),
     TITANIUM_RELIC: gInfo("HotM 5", potm >= 5), TREASURE_RING: gInfo("8x Treasure Talisman", countItems("TREASURE_TALISMAN") >= 8),
     JERRY_TALISMAN_GOLDEN: gInfo("5x Purple Jerry Talisman", countItems("JERRY_TALISMAN_PURPLE") >= 5),
-    SOULFLOW_BATTERY: gSlayer("enderman", 2), SOULFLOW_SUPERCELL: gSlayer("enderman", 2),
+    SOULFLOW_BATTERY: gSlayer("enderman", 5), SOULFLOW_SUPERCELL: gSlayer("enderman", 7), // wiki table levels; NEU's EMAN_2 on these is wrong
   };
   for (const u of accUpgrades) {
     const g = TARGET_GATES[u.nextId];
