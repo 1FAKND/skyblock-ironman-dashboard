@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.13.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.14.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -1070,6 +1070,36 @@ async function main() {
     SOULFLOW_SUPERCELL: [["NULL_OVOID", 192], ["NULL_ATOM", 2], ["SOULFLOW_BATTERY", 1]],
   };
 
+  // base stats per recipe item (NEU lore, checked 2026-07-09) - used to show
+  // the offense/defense weight behind each priority and deltas vs current gear
+  const ITEM_STATS = {
+    REVENANT_SWORD: { dmg: 90, str: 50, int: 100 }, REAPER_SWORD: { dmg: 120, str: 100, int: 200 },
+    AXE_OF_THE_SHREDDED: { dmg: 140, str: 115 },
+    REVENANT_CHESTPLATE: { hp: 180, def: 70 }, REVENANT_LEGGINGS: { hp: 120, def: 50 }, REVENANT_BOOTS: { hp: 100, def: 30 },
+    REAPER_MASK: { hp: 150, def: 100, int: 100 }, REAPER_CHESTPLATE: { hp: 180, def: 70, str: 25, int: 250 },
+    WARDEN_HELMET: { hp: 300, def: 100 },
+    RECLUSE_FANG: { dmg: 60, str: 30, cd: 10 }, SCORPION_FOIL: { dmg: 120, str: 60, cd: 30 }, STING: { dmg: 150, str: 75, cd: 40 },
+    TARANTULA_HELMET: { hp: 100, def: 80, int: 80 }, TARANTULA_CHESTPLATE: { hp: 120, def: 100, int: 100 },
+    TARANTULA_LEGGINGS: { hp: 105, def: 90, int: 80 }, TARANTULA_BOOTS: { hp: 70, def: 70, int: 50 },
+    MASTIFF_HELMET: { hp: 500, def: -1000000 }, MASTIFF_CHESTPLATE: { hp: 500, def: -1000000 },
+    MASTIFF_LEGGINGS: { hp: 500, def: -1000000 }, MASTIFF_BOOTS: { hp: 500, def: -1000000 },
+    RED_CLAW_TALISMAN: { cd: 1 }, RED_CLAW_RING: { cd: 3 }, RED_CLAW_ARTIFACT: { cd: 5 },
+    VOIDWALKER_KATANA: { dmg: 105, str: 40, cd: 15 }, VOIDEDGE_KATANA: { dmg: 155, str: 60, cd: 25 },
+    VORPAL_KATANA: { dmg: 190, str: 80, cd: 30, int: 200 }, ATOMSPLIT_KATANA: { dmg: 305, str: 100, cd: 50, int: 300 },
+    JUJU_SHORTBOW: { dmg: 310, str: 40, cc: 10, cd: 110 }, TERMINATOR: { dmg: 310, str: 50, cd: 250 },
+    ASPECT_OF_THE_VOID: { dmg: 120, str: 100 },
+    FINAL_DESTINATION_HELMET: { hp: 140, def: 100, int: 100 }, FINAL_DESTINATION_CHESTPLATE: { hp: 200, def: 100, int: 100 },
+    FINAL_DESTINATION_LEGGINGS: { hp: 160, def: 100, int: 100 }, FINAL_DESTINATION_BOOTS: { hp: 100, def: 100, int: 100 },
+    FIREDUST_DAGGER: { dmg: 90, str: 45, cd: 15 },
+    BURSTSTOPPER_TALISMAN: { td: 2, str: 1 }, BURSTSTOPPER_ARTIFACT: { td: 3, str: 2 },
+    DESTRUCTION_CLOAK: { hp: 60, str: 15, cd: 15 }, ANNIHILATION_CLOAK: { hp: 80, str: 20, cd: 20 },
+  };
+  const STAT_LBL = { dmg: " dmg", str: " str", cc: "% cc", cd: "% cd", hp: " HP", def: " def", int: " int", td: " tdef" };
+  const statText = (o) => Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? "+" : ""}${Math.abs(v) >= 1e6 ? (v / 1e6) + "M" : v}${STAT_LBL[k] || k}`).join(" ");
+  const sumStats = (ids) => { const t = {}; for (const id of ids) for (const [k, v] of Object.entries(ITEM_STATS[id] || {})) t[k] = (t[k] || 0) + v; return t; };
+  // parse the player's own item lore for damage/strength (includes reforges)
+  const loreStats = (item) => { const o = {}; for (const l of item?.lore || []) { const m = l.replace(/§./g, "").match(/^(Damage|Strength): \+?([\d,]+)/); if (m) o[m[1] === "Damage" ? "dmg" : "str"] = Number(m[2].replace(/,/g, "")); } return o; };
+
   // owning any of these higher-tier items means the entry is already "done"
   const SUPERSEDES = {
     RED_CLAW_TALISMAN: ["RED_CLAW_RING", "RED_CLAW_ARTIFACT"],
@@ -1122,7 +1152,17 @@ async function main() {
       // wiki titles keep small words lowercase ("Aspect of the Void")
       const wikiTitle = (s) => s.replace(/\b(Of|The|To|In|And)\b/g, (m, w, off) => (off === 0 ? m : m.toLowerCase()));
       const wiki = "https://hypixelskyblock.minecraft.wiki/w/" + wikiTitle(r.wiki || baseName).replace(/ /g, "_");
-      return { name, req: r.req, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats };
+      // stat weight behind the priority, + delta vs the player's current weapon
+      const stats = sumStats(ids);
+      let delta = null;
+      if (status !== "owned" && stats.dmg && weaponId && fullItemById[weaponId]) {
+        const cur = loreStats(fullItemById[weaponId]);
+        if (cur.dmg) {
+          const d = stats.dmg - cur.dmg, s = (stats.str || 0) - (cur.str || 0);
+          if (d > 0 || s > 0) delta = `${d > 0 ? `+${d} dmg` : ""}${d > 0 && s > 0 ? ", " : ""}${s > 0 ? `+${s} str` : ""} vs your ${nice(weaponId)}`;
+        }
+      }
+      return { name, req: r.req, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats, stats: statText(stats) || null, delta };
     });
     // what to craft first among currently-unlocked recipes
     const focus = recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio || a.req - b.req)[0] || null;

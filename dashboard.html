@@ -282,7 +282,9 @@ function render() {
             ).join(" · ")}</div>` : "";
             const prioChip = `<span style="color:${r.prio === 1 ? "var(--gold)" : "var(--dim)"}">${["①", "②", "③"][(r.prio || 2) - 1]}</span>`;
             const nm = r.wiki ? `<a href="${esc(r.wiki)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline dotted;text-underline-offset:2px">${esc(r.name)}</a>` : esc(r.name);
-            return `<div style="font-size:13px;color:${st[1]}">${st[0]} ${prioChip} <b>LVL ${r.req}</b> ${nm} <span style="color:var(--dim)">- ${esc(r.why)}</span> <span style="color:${st[1]}">[${st[2]}]</span></div>${mats}`;
+            const statChip = r.stats ? ` <span style="color:var(--aqua)">[${esc(r.stats)}]</span>` : "";
+            const deltaChip = r.delta ? ` <span style="color:var(--gold)">(${esc(r.delta)})</span>` : "";
+            return `<div style="font-size:13px;color:${st[1]}">${st[0]} ${prioChip} <b>LVL ${r.req}</b> ${nm} <span style="color:var(--dim)">- ${esc(r.why)}</span>${statChip}${deltaChip} <span style="color:${st[1]}">[${st[2]}]</span></div>${mats}`;
           }).join("")}
         </div>` : ""}
       </div>`;
