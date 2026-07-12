@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.15.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.16.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -1234,6 +1234,13 @@ async function main() {
         { type: "ROCK", why: "starter" },
       ],
       note: "Mining Fortune multiplies drops, Mining Speed breaks blocks faster - balance both.",
+      zones: [
+        { zone: "Glacite Mineshafts / Tunnels", pet: "GLACITE_GOLEM", why: "Mining Fortune inside mineshafts + bonus Glacite Powder" },
+        { zone: "Crystal Hollows (gemstones)", pet: "SCATHA", why: "Gemstone Fortune on drills + treasure chest finds" },
+        { zone: "Mines of Divan / Nucleus runs", pet: "MOLE", why: "more scavenged items, automaton parts, nucleus bonus" },
+        { zone: "Magma Fields", pet: "BAL", why: "Pristine there + heat control + pickaxe cooldown" },
+        { zone: "Dwarven commissions (general)", pet: "SCATHA", why: "best general fortune pick" },
+      ],
       recipes: [
         { id: "MITHRIL_DRILL_1", gate: { hotm: 2 }, prio: 1, why: "first drill - huge speed jump" },
         { id: "MITHRIL_DRILL_2", gate: { hotm: 3 }, prio: 2, why: "drill upgrade" },
@@ -1258,6 +1265,10 @@ async function main() {
         { type: "RABBIT", why: "farming XP boost" },
       ],
       note: "Farming Fortune multiplies harvests - it beats speed for progression.",
+      zones: [
+        { zone: "Garden crops (fortune)", pet: "ELEPHANT", why: "flat Farming Fortune" },
+        { zone: "Sprayonator / pest plots", pet: "SLUG", why: "bonus pest chance + fortune on sprayed plots" },
+      ],
       recipes: [
         { id: "MELON_CHESTPLATE", gate: { coll: ["MELON", 9, "Melon"] }, prio: 2, why: "chestplate chain starts (each tier has a full set)" },
         { id: "CROPIE_CHESTPLATE", prio: 2, why: "consumes the Melon chest" },
@@ -1280,6 +1291,12 @@ async function main() {
         { type: "SQUID", why: "fishing XP" },
       ],
       note: "Sea Creature Chance brings more creatures; Fishing Speed brings faster bites.",
+      zones: [
+        { zone: "General water fishing", pet: "AMMONITE", why: "Sea Creature Chance scales with your HotM tier" },
+        { zone: "Crystal Hollows fishing", pet: "AMMONITE", why: "adds Double Hook chance per HotM level there" },
+        { zone: "Crimson Isle (slugfish)", pet: "SLUG", why: "slugfish catch time reduced" },
+        { zone: "Jerry pond (winter)", pet: "BABY_YETI", why: "strength + defense while fishing" },
+      ],
       recipes: [
         { id: "SPONGE_CHESTPLATE", gate: { coll: ["SPONGE", 9, "Sponge"] }, prio: 2, why: "fishing armor chain starts" },
         { id: "SHARK_SCALE_CHESTPLATE", prio: 2, why: "consumes the Sponge chest" },
@@ -1291,8 +1308,8 @@ async function main() {
     },
     {
       skill: "foraging", label: "Foraging & Hunting", wikiPage: "Foraging",
-      tools: ["TREECAPITATOR_AXE", "FIGSTONE_AXE", "JUNGLE_AXE"],
-      toolHint: "Foraging was recently reworked (Galatea update) - follow the wiki while the meta settles.",
+      tools: [],
+      toolHint: "Axe choice now depends on tree Toughness and Sweep (Galatea rework) - no single BiS; your Figstone Axe handles Galatea trees, Treecapitator suits Park trees. Check the wiki + Heart of the Forest.",
       sets: [{ id: "FIG", why: "Galatea foraging set" }, { id: "SILVER_HUNTER", why: "hunting set" }, { id: "CHALLENGER", why: "hunting combat set" }],
       equipSlots: { Cloak: ["MANGROVE_VINE"], Necklace: ["MANGROVE_LOCKET"], Gloves: ["MANGROVE_GRIPPERS"] },
       pets: [
@@ -1301,6 +1318,10 @@ async function main() {
       ],
       note: "Newest content in the game - gear advice here is intentionally light; check the wiki.",
       recipes: [],
+      zones: [
+        { zone: "The Park", pet: "MONKEY", why: "its Speed and Sweep perks ONLY work in the Park" },
+        { zone: "Galatea (Figs / Mangrove)", pet: "MONKEY", why: "only its flat Foraging Fortune applies here - newer Hunting-shard pets may beat it as the meta settles" },
+      ],
     },
   ];
 
@@ -1332,9 +1353,38 @@ async function main() {
       };
     });
     const focus = recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio)[0] || null;
+    // zone-specific pet picks (perks verified via NEU lore), with ownership
+    const zones = (k.zones || []).map((z) => {
+      const p = petByType[z.pet];
+      return { ...z, petName: nice(z.pet), owned: p ? { tier: p.tier, level: p.level } : null };
+    });
+    // in-place upgrades on gear the player already owns (gem slots, drill parts)
+    const gearUpgrades = [];
+    const inspect = (id, label) => {
+      const it = fullItemById[id];
+      if (!it) return;
+      const plain = (it.lore || []).map((l) => stripColors(l));
+      const gemLine = plain.find((l) => /^Gemstones:/.test(l.trim()));
+      if (gemLine) {
+        // slot brackets contain custom-font glyphs, so count slots via "[" and
+        // filled slots via the item's gems data (keys minus _gem meta entries)
+        const gems = it.gems || {};
+        const filledKeys = Object.keys(gems).filter((k) => !k.endsWith("_gem") && k !== "unlocked_slots");
+        const totalSlots = (gemLine.match(/\[/g) || []).length;
+        const empty = Math.max(0, totalSlots - filledKeys.length);
+        if (empty > 0) gearUpgrades.push(`${label}: ${empty} of ${totalSlots} gemstone slots unfilled (some slot types need unlocking first).`);
+        const lowQ = filledKeys.filter((k) => { const v = gems[k]; const q = typeof v === "string" ? v : v?.quality; return ["ROUGH", "FLAWED", "FINE"].includes(q); }).length;
+        if (lowQ > 0) gearUpgrades.push(`${label}: ${lowQ} socketed gem(s) below Flawless quality - upgrading gems is a big stat jump.`);
+      }
+      const lore = plain.join(" | ");
+      if (/Ruby-Polished Drill Engine/.test(lore)) gearUpgrades.push(`${label}: Ruby-Polished engine installed - Sapphire- and Amber-Polished Drill Engines are direct upgrades.`);
+      if (/Mithril-Infused Fuel Tank/.test(lore)) gearUpgrades.push(`${label}: Mithril-Infused tank installed - Gemstone and Perfectly-Cut Fuel Tanks are direct upgrades.`);
+    };
+    if (toolId) inspect(toolId, "Your " + nice(toolId));
+    if (armor) for (const pid of armor.pieceIds) inspect(pid, nice(pid));
     return {
       skill: k.skill, label: k.label, level: lvl, toolId, toolHint: toolId ? null : k.toolHint, armor, pet, petAlt, petGoal,
-      equipment, recipes, focus, note: k.note,
+      equipment, recipes, focus, zones, gearUpgrades, note: k.note,
       wikiUrl: "https://hypixelskyblock.minecraft.wiki/w/" + k.wikiPage,
     };
   });

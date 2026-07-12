@@ -217,6 +217,18 @@ function render() {
     </div>`;
   }).join("") + `</div></section>`;
 
+  // shared roadmap block: hides already-owned entries behind a done-count
+  const roadmapBlock = (recipes, focus, heading) => {
+    const todo = recipes.filter(r => r.status !== "owned");
+    const done = recipes.length - todo.length;
+    if (!recipes.length) return "";
+    return `<div style="margin-top:10px">
+      <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">${esc(heading)} - ① craft first · ② next · ③ optional${done ? ` · <span style="color:var(--green)">✔ ${done} already done</span>` : ""}</div>
+      ${focus ? `<div style="font-size:13px;color:var(--gold);margin-bottom:4px">🎯 Craft first: <b>${esc(focus.name)}</b> - ${esc(focus.why)}</div>` : ""}
+      ${todo.length ? todo.map(r => roadmapLine(r)).join("") : `<div style="font-size:13px;color:var(--green)">Everything here is crafted or superseded - nothing left on this ladder.</div>`}
+    </div>`;
+  };
+
   // shared roadmap line renderer (slayer + skill loadouts)
   const roadmapLine = (r) => {
     const st = r.status === "owned" ? ["✔", "var(--green)", r.superseded ? "done - you own the upgrade" : "owned"] :
@@ -262,7 +274,7 @@ function render() {
   // ---- Slayer loadouts (best owned kit per slayer)
   if (D.slayerLoadouts && D.slayerLoadouts.length) {
     html += `<h3 style="margin:22px 0 4px;color:var(--aqua);font-size:15px">SUGGESTED LOADOUTS - BUILT FROM GEAR YOU OWN</h3>
-    <div class="hint">What to equip for each slayer at your current level (museum-donated items excluded). Suggested tier is a "comfortably farmable" estimate, not an unlock requirement.</div>`;
+    <div class="hint">What to equip for each slayer at your current level (museum-donated items excluded). Suggested tier is a "comfortably farmable" estimate, not an unlock requirement. Tip: save each kit as an in-game <b>/loadout</b> preset.</div>`;
     for (const L of D.slayerLoadouts) {
       html += `<div class="card" style="margin-bottom:10px;padding:12px 16px">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline">
@@ -285,13 +297,7 @@ function render() {
           ${L.petGoal ? `<div style="color:var(--med)">Pet upgrade goal: <b>${esc(L.petGoal.name)}</b> - ${esc(L.petGoal.why)}${L.petGoal.obtain ? ` (${esc(L.petGoal.obtain)})` : ""}</div>` : ""}
           <div style="margin-top:4px">${esc(L.note)}</div>
         </div>
-        ${(L.recipes || []).length ? `<div style="margin-top:10px">
-          <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Recipe roadmap - ① craft first · ② next · ③ optional</div>
-          ${L.focus ? `<div style="font-size:13px;color:var(--gold);margin-bottom:4px">🎯 Craft first: <b>${esc(L.focus.name)}</b> - ${esc(L.focus.why)}</div>` : ""}
-          ${L.recipes.map(r => {
-            return roadmapLine(r);
-          }).join("")}
-        </div>` : ""}
+        ${roadmapBlock(L.recipes || [], L.focus, "Recipe roadmap")}
       </div>`;
     }
   }
@@ -300,7 +306,7 @@ function render() {
   // ---- Skill Loadouts (same template as slayers, for gathering skills)
   if (D.skillLoadouts && D.skillLoadouts.length) {
     html += `<section id="skillgear"><h2>Skill Loadouts</h2>
-    <div class="hint">Best owned kit per gathering skill, plus the prioritized gear ladder (gates: HotM tiers and collection levels).</div>`;
+    <div class="hint">Best owned kit per gathering skill, plus the prioritized gear ladder (gates: HotM tiers and collection levels). Tip: the in-game <b>/loadout</b> command saves armor + equipment + pet + HotM/HotF tree + power as one-click presets - mirror these cards there.</div>`;
     for (const S of D.skillLoadouts) {
       html += `<div class="card" style="margin-bottom:10px;padding:12px 16px">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline">
@@ -321,11 +327,14 @@ function render() {
           ${S.petGoal ? `<div style="color:var(--med)">Pet upgrade goal: <b>${esc(S.petGoal.name)}</b> - ${esc(S.petGoal.why)}</div>` : ""}
           <div style="margin-top:4px">${esc(S.note)}</div>
         </div>
-        ${(S.recipes || []).length ? `<div style="margin-top:10px">
-          <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Gear roadmap - ① craft first · ② next · ③ optional</div>
-          ${S.focus ? `<div style="font-size:13px;color:var(--gold);margin-bottom:4px">🎯 Craft first: <b>${esc(S.focus.name)}</b> - ${esc(S.focus.why)}</div>` : ""}
-          ${S.recipes.map(r => roadmapLine(r)).join("")}
+        ${(S.gearUpgrades || []).length ? `<div style="margin-top:8px">${S.gearUpgrades.map(g => `<div style="font-size:13px;color:var(--gold)">🔧 Upgrade in place: ${esc(g)}</div>`).join("")}</div>` : ""}
+        ${(S.zones || []).length ? `<div style="margin-top:10px">
+          <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Best pet by zone - save each as an in-game /loadout</div>
+          <table class="plain" style="font-size:13px">${S.zones.map(z =>
+            `<tr><td style="color:var(--dim);width:220px">${esc(z.zone)}</td><td>${z.owned ? `<b class="r-${esc(z.owned.tier)}">${esc(z.petName)}</b> lvl ${z.owned.level} ✓` : `<span style="color:var(--med)">${esc(z.petName)} (not owned)</span>`}</td><td style="color:var(--dim)">${esc(z.why)}</td></tr>`).join("")}
+          </table>
         </div>` : ""}
+        ${roadmapBlock(S.recipes || [], S.focus, "Gear roadmap")}
       </div>`;
     }
     html += `</section>`;
