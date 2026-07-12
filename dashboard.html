@@ -177,7 +177,7 @@ function render() {
   </div>
 
   <nav class="toc">
-    <a href="#recs">✅ To-Do</a><a href="#skills">Skills</a><a href="#slayers">Slayers</a><a href="#dungeons">Dungeons</a>
+    <a href="#recs">✅ To-Do</a><a href="#skills">Skills</a><a href="#slayers">Slayers</a><a href="#skillgear">Skill Loadouts</a><a href="#dungeons">Dungeons</a>
     <a href="#crafts">Craft First</a><a href="#events">Events</a><a href="#gear">Gear</a><a href="#gearreview">Gear by Activity</a><a href="#acctracker">Accessory Tracker</a>
     <a href="#accessories">Accessories</a><a href="#pets">Pets</a><a href="#minions">Minions</a>
   </nav>`;
@@ -216,6 +216,21 @@ function render() {
       <div class="sub">${maxed ? "MAXED" : `${fmtBig(s.xpCurrent)} / ${fmtBig(s.xpForNext)} to ${s.level + 1}`} · total ${fmtBig(s.xp)} XP</div>
     </div>`;
   }).join("") + `</div></section>`;
+
+  // shared roadmap line renderer (slayer + skill loadouts)
+  const roadmapLine = (r) => {
+    const st = r.status === "owned" ? ["✔", "var(--green)", r.superseded ? "done - you own the upgrade" : "owned"] :
+               r.status === "unlocked" ? ["🔨", "var(--med)", "UNLOCKED - craft it"] :
+               ["🔒", "var(--dim)", `needs ${r.reqLabel}`];
+    const mats = r.mats ? `<div style="font-size:12px;color:var(--dim);margin:1px 0 4px 22px">needs: ${r.mats.map(m =>
+      `<span style="color:${m.ok ? "var(--green)" : "var(--red)"}">${m.ok ? "✓" : "✗"} ${m.need}x ${esc(m.name)} <span style="color:var(--dim)">(you: ${m.have.toLocaleString("en-US")})</span></span>`
+    ).join(" · ")}</div>` : "";
+    const prioChip = `<span style="color:${r.prio === 1 ? "var(--gold)" : "var(--dim)"}">${["①", "②", "③"][(r.prio || 2) - 1]}</span>`;
+    const nm = r.wiki ? `<a href="${esc(r.wiki)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline dotted;text-underline-offset:2px">${esc(r.name)}</a>` : esc(r.name);
+    const statChip = r.stats ? ` <span style="color:var(--aqua)">[${esc(r.stats)}]</span>` : "";
+    const deltaChip = r.delta ? ` <span style="color:var(--gold)">(${esc(r.delta)})</span>` : "";
+    return `<div style="font-size:13px;color:${st[1]}">${st[0]} ${prioChip} <b>${esc(r.reqLabel)}</b> ${nm} <span style="color:var(--dim)">- ${esc(r.why)}</span>${statChip}${deltaChip} <span style="color:${st[1]}">[${st[2]}]</span></div>${mats}`;
+  };
 
   // hoverable item card with full in-game tooltip (shared by Gear + Slayer loadouts)
   const item = (it, tag) => `<div class="card item">
@@ -274,23 +289,47 @@ function render() {
           <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Recipe roadmap - ① craft first · ② next · ③ optional</div>
           ${L.focus ? `<div style="font-size:13px;color:var(--gold);margin-bottom:4px">🎯 Craft first: <b>${esc(L.focus.name)}</b> - ${esc(L.focus.why)}</div>` : ""}
           ${L.recipes.map(r => {
-            const st = r.status === "owned" ? ["✔", "var(--green)", r.superseded ? "done - you own the upgrade" : "owned"] :
-                       r.status === "unlocked" ? ["🔨", "var(--med)", "UNLOCKED - craft it"] :
-                       ["🔒", "var(--dim)", `unlocks at LVL ${r.req}`];
-            const mats = r.mats ? `<div style="font-size:12px;color:var(--dim);margin:1px 0 4px 22px">needs: ${r.mats.map(m =>
-              `<span style="color:${m.ok ? "var(--green)" : "var(--red)"}">${m.ok ? "✓" : "✗"} ${m.need}x ${esc(m.name)} <span style="color:var(--dim)">(you: ${m.have.toLocaleString("en-US")})</span></span>`
-            ).join(" · ")}</div>` : "";
-            const prioChip = `<span style="color:${r.prio === 1 ? "var(--gold)" : "var(--dim)"}">${["①", "②", "③"][(r.prio || 2) - 1]}</span>`;
-            const nm = r.wiki ? `<a href="${esc(r.wiki)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline dotted;text-underline-offset:2px">${esc(r.name)}</a>` : esc(r.name);
-            const statChip = r.stats ? ` <span style="color:var(--aqua)">[${esc(r.stats)}]</span>` : "";
-            const deltaChip = r.delta ? ` <span style="color:var(--gold)">(${esc(r.delta)})</span>` : "";
-            return `<div style="font-size:13px;color:${st[1]}">${st[0]} ${prioChip} <b>LVL ${r.req}</b> ${nm} <span style="color:var(--dim)">- ${esc(r.why)}</span>${statChip}${deltaChip} <span style="color:${st[1]}">[${st[2]}]</span></div>${mats}`;
+            return roadmapLine(r);
           }).join("")}
         </div>` : ""}
       </div>`;
     }
   }
   html += `</section>`;
+
+  // ---- Skill Loadouts (same template as slayers, for gathering skills)
+  if (D.skillLoadouts && D.skillLoadouts.length) {
+    html += `<section id="skillgear"><h2>Skill Loadouts</h2>
+    <div class="hint">Best owned kit per gathering skill, plus the prioritized gear ladder (gates: HotM tiers and collection levels).</div>`;
+    for (const S of D.skillLoadouts) {
+      html += `<div class="card" style="margin-bottom:10px;padding:12px 16px">
+        <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline">
+          <span style="font-weight:700">${esc(S.label)} <a href="${esc(S.wikiUrl)}" target="_blank" rel="noopener" style="color:var(--dim);font-size:11px;text-decoration:none">wiki ↗</a></span>
+          <span style="color:var(--dim);font-size:13px">skill level ${S.level}</span>
+        </div>
+        ${(() => {
+          const group = (label, cards) => cards ? `<div style="margin-top:8px"><div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">${esc(label)}</div><div class="grid">${cards}</div></div>` : "";
+          return group("Tool", S.tool ? item(S.tool, "Tool") : "")
+            + group("Armor", S.armorPieces.map(p => item(p)).join(""))
+            + group("Equipment", S.equipment.map(e => item(e.item, e.slot)).join(""));
+        })()}
+        <div class="sub" style="margin-top:8px">
+          ${S.tool ? "" : `<div style="color:var(--med)">Tool: ${esc(S.toolHint || "")}</div>`}
+          ${S.armor ? `<div>Set: <b>${esc(S.armor.name)}</b> (${S.armor.pieces}/4 owned)${S.armor.why ? ` - ${esc(S.armor.why)}` : ""}</div>` : `<div style="color:var(--med)">Armor: no matching set owned</div>`}
+          <div>Pet: ${S.pet ? `<b class="r-${esc(S.pet.tier)}">${esc(S.pet.name)}</b> lvl ${S.pet.level} <span style="color:var(--dim)">- ${esc(S.pet.why || "")}</span>` : `<span style="color:var(--med)">no suitable pet owned</span>`}</div>
+          ${S.petAlt ? `<div style="color:var(--dim)">Also viable: <b class="r-${esc(S.petAlt.tier)}">${esc(S.petAlt.name)}</b> lvl ${S.petAlt.level} - ${esc(S.petAlt.why)}</div>` : ""}
+          ${S.petGoal ? `<div style="color:var(--med)">Pet upgrade goal: <b>${esc(S.petGoal.name)}</b> - ${esc(S.petGoal.why)}</div>` : ""}
+          <div style="margin-top:4px">${esc(S.note)}</div>
+        </div>
+        ${(S.recipes || []).length ? `<div style="margin-top:10px">
+          <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Gear roadmap - ① craft first · ② next · ③ optional</div>
+          ${S.focus ? `<div style="font-size:13px;color:var(--gold);margin-bottom:4px">🎯 Craft first: <b>${esc(S.focus.name)}</b> - ${esc(S.focus.why)}</div>` : ""}
+          ${S.recipes.map(r => roadmapLine(r)).join("")}
+        </div>` : ""}
+      </div>`;
+    }
+    html += `</section>`;
+  }
 
   // ---- Dungeons
   const dg = D.dungeons;

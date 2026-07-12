@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.14.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.15.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
@@ -1068,6 +1068,14 @@ async function main() {
     SOULFLOW_ENGINE: [["NULL_ATOM", 2], ["LESSER_SOULFLOW_ENGINE", 4], ["NULL_OVOID", 64], ["REFINED_TITANIUM", 12]],
     SOULFLOW_BATTERY: [["NULL_OVOID", 8], ["SOULFLOW_PILE", 1]],
     SOULFLOW_SUPERCELL: [["NULL_OVOID", 192], ["NULL_ATOM", 2], ["SOULFLOW_BATTERY", 1]],
+    GEMSTONE_GAUNTLET: [["FLAWLESS_RUBY_GEM", 8], ["ENCHANTED_GOLD_BLOCK", 16]],
+    MELON_CHESTPLATE: [["ENCHANTED_MELON_BLOCK", 40]],
+    CROPIE_CHESTPLATE: [["CROPIE", 20], ["MELON_CHESTPLATE", 1], ["BOX_OF_SEEDS", 6], ["ENCHANTED_HAY_BALE", 8], ["ENCHANTED_BAKED_POTATO", 45]],
+    SQUASH_CHESTPLATE: [["SQUASH", 20], ["CROPIE_CHESTPLATE", 1], ["ENCHANTED_MELON_BLOCK", 48], ["POLISHED_PUMPKIN", 8], ["ENCHANTED_COOKIE", 30]],
+    FERMENTO_CHESTPLATE: [["CONDENSED_FERMENTO", 2], ["SQUASH_CHESTPLATE", 1], ["ENCHANTED_HUGE_MUSHROOM_2", 16], ["ENCHANTED_SUGAR_CANE", 32], ["ENCHANTED_HUGE_MUSHROOM_1", 16], ["MUTANT_NETHER_STALK", 30], ["ENCHANTED_CACTUS", 25]],
+    RANCHERS_BOOTS: [["POLISHED_PUMPKIN", 16], ["FARMER_BOOTS", 1]],
+    ROD_OF_THE_SEA: [["ENCHANTED_SHARK_FIN", 4], ["GREAT_WHITE_SHARK_TOOTH", 4], ["LEGEND_ROD", 1]],
+    SORROW_CHESTPLATE: [["SORROW", 24]],
   };
 
   // base stats per recipe item (NEU lore, checked 2026-07-09) - used to show
@@ -1093,8 +1101,16 @@ async function main() {
     FIREDUST_DAGGER: { dmg: 90, str: 45, cd: 15 },
     BURSTSTOPPER_TALISMAN: { td: 2, str: 1 }, BURSTSTOPPER_ARTIFACT: { td: 3, str: 2 },
     DESTRUCTION_CLOAK: { hp: 60, str: 15, cd: 15 }, ANNIHILATION_CLOAK: { hp: 80, str: 20, cd: 20 },
+    // skill gear (NEU lore): ms=Mining Speed, mf=Mining Fortune, ff=Farming Fortune, fs=Fishing Speed, scc=Sea Creature Chance
+    MITHRIL_DRILL_1: { ms: 450, mf: 15 }, MITHRIL_DRILL_2: { ms: 600, mf: 20 }, TITANIUM_DRILL_1: { ms: 700, mf: 25 },
+    DIVAN_DRILL: { ms: 1800, mf: 150 }, GEMSTONE_GAUNTLET: { dmg: 300, str: 50, ms: 800 },
+    MELON_CHESTPLATE: { hp: 150, def: 25, ff: 20 }, CROPIE_CHESTPLATE: { hp: 165, def: 30, ff: 25 },
+    SQUASH_CHESTPLATE: { hp: 180, def: 35, ff: 30 }, FERMENTO_CHESTPLATE: { hp: 195, def: 40, ff: 35 },
+    RANCHERS_BOOTS: { hp: 100, def: 84, spd: 78 },
+    ROD_OF_THE_SEA: { dmg: 150, str: 150, fs: 80, scc: 8 }, HELLFIRE_ROD: { dmg: 225, str: 225, fs: 60, scc: 14 },
+    AUGER_ROD: { dmg: 135, str: 90, fs: 110 }, SORROW_CHESTPLATE: { ms: 50, mf: 20 },
   };
-  const STAT_LBL = { dmg: " dmg", str: " str", cc: "% cc", cd: "% cd", hp: " HP", def: " def", int: " int", td: " tdef" };
+  const STAT_LBL = { dmg: " dmg", str: " str", cc: "% cc", cd: "% cd", hp: " HP", def: " def", int: " int", td: " tdef", ms: " mine-spd", mf: " mine-fortune", ff: " farm-fortune", fs: " fish-spd", scc: "% sea-creature", spd: " spd" };
   const statText = (o) => Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${v > 0 ? "+" : ""}${Math.abs(v) >= 1e6 ? (v / 1e6) + "M" : v}${STAT_LBL[k] || k}`).join(" ");
   const sumStats = (ids) => { const t = {}; for (const id of ids) for (const [k, v] of Object.entries(ITEM_STATS[id] || {})) t[k] = (t[k] || 0) + v; return t; };
   // parse the player's own item lore for damage/strength (includes reforges)
@@ -1122,6 +1138,15 @@ async function main() {
     BURSTSTOPPER_TALISMAN: ["BURSTSTOPPER_ARTIFACT"],
     FIREDUST_DAGGER: ["KINDLEBANE_DAGGER", "PYROCHAOS_DAGGER"],
     KINDLEBANE_DAGGER: ["PYROCHAOS_DAGGER"],
+    MITHRIL_DRILL_1: ["MITHRIL_DRILL_2", "TITANIUM_DRILL_1", "TITANIUM_DRILL_2", "TITANIUM_DRILL_3", "TITANIUM_DRILL_4", "DIVAN_DRILL"],
+    MITHRIL_DRILL_2: ["TITANIUM_DRILL_1", "TITANIUM_DRILL_2", "TITANIUM_DRILL_3", "TITANIUM_DRILL_4", "DIVAN_DRILL"],
+    TITANIUM_DRILL_1: ["TITANIUM_DRILL_2", "TITANIUM_DRILL_3", "TITANIUM_DRILL_4", "DIVAN_DRILL"],
+    MELON_CHESTPLATE: ["CROPIE_CHESTPLATE", "SQUASH_CHESTPLATE", "FERMENTO_CHESTPLATE", "HELIANTHUS_CHESTPLATE"],
+    CROPIE_CHESTPLATE: ["SQUASH_CHESTPLATE", "FERMENTO_CHESTPLATE", "HELIANTHUS_CHESTPLATE"],
+    SQUASH_CHESTPLATE: ["FERMENTO_CHESTPLATE", "HELIANTHUS_CHESTPLATE"],
+    FERMENTO_CHESTPLATE: ["HELIANTHUS_CHESTPLATE"],
+    ROD_OF_THE_SEA: ["HELLFIRE_ROD"],
+    SPONGE_CHESTPLATE: ["SHARK_SCALE_CHESTPLATE"],
   };
 
   const suggestedTier = (lvl, max) => Math.min(max, lvl <= 1 ? 1 : lvl <= 3 ? 2 : lvl <= 5 ? 3 : 4);
@@ -1162,7 +1187,7 @@ async function main() {
           if (d > 0 || s > 0) delta = `${d > 0 ? `+${d} dmg` : ""}${d > 0 && s > 0 ? ", " : ""}${s > 0 ? `+${s} str` : ""} vs your ${nice(weaponId)}`;
         }
       }
-      return { name, req: r.req, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats, stats: statText(stats) || null, delta };
+      return { name, req: r.req, reqLabel: `LVL ${r.req}`, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats, stats: statText(stats) || null, delta };
     });
     // what to craft first among currently-unlocked recipes
     const focus = recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio || a.req - b.req)[0] || null;
@@ -1186,6 +1211,141 @@ async function main() {
   }
 
   // =================================================================
+  // SKILL LOADOUTS - the slayer template applied to gathering skills:
+  // best owned tool/armor/equipment/pet + prioritized gear roadmap.
+  // =================================================================
+
+  const collTier = (name) => member.collectionTiers?.[name] ?? 0;
+  const potm = member.stats?.mining?.peakOfTheMountainLevel ?? 0;
+  const gateOk = (g) => !g || (g.hotm ? potm >= g.hotm : g.coll ? collTier(g.coll[0]) >= g.coll[1] : true);
+  const gateLabel = (g) => (!g ? "no gate" : g.hotm ? `HotM ${g.hotm}` : g.coll ? `${g.coll[2]} ${g.coll[1]}` : "");
+
+  const SKILL_KITS = [
+    {
+      skill: "mining", label: "Mining", wikiPage: "Mining",
+      tools: ["DIVAN_DRILL", "TITANIUM_DRILL_4", "TITANIUM_DRILL_3", "TITANIUM_DRILL_2", "TITANIUM_DRILL_1", "MITHRIL_DRILL_2", "MITHRIL_DRILL_1", "GEMSTONE_GAUNTLET", "STONK_PICKAXE"],
+      toolHint: "Craft the Mithril Drill at HotM 2 - drills leap past pickaxes.",
+      sets: [{ id: "DIVAN", name: "Armor of Divan", why: "top mining set" }, { id: "SORROW", why: "cheap, strong glacite set" }, { id: "ARMOR_OF_YOG", name: "Armor of Yog", why: "Crimson mining" }, { id: "GLOSSY_MINERAL" }, { id: "MINERAL" }, { id: "GLACITE" }],
+      equipSlots: { Necklace: ["TITANIUM_NECKLACE", "MITHRIL_NECKLACE"], Cloak: ["TITANIUM_CLOAK", "MITHRIL_CLOAK"], Belt: ["TITANIUM_BELT", "MITHRIL_BELT"], Gloves: ["TITANIUM_GAUNTLET", "DWARVEN_HANDWARMERS", "MITHRIL_GAUNTLET"] },
+      pets: [
+        { type: "SCATHA", why: "Mining Fortune + treasure drops - the fortune pet" },
+        { type: "GLACITE_GOLEM", why: "strong in the Glacite tunnels" },
+        { type: "MOLE", why: "XP + spread mining" },
+        { type: "ROCK", why: "starter" },
+      ],
+      note: "Mining Fortune multiplies drops, Mining Speed breaks blocks faster - balance both.",
+      recipes: [
+        { id: "MITHRIL_DRILL_1", gate: { hotm: 2 }, prio: 1, why: "first drill - huge speed jump" },
+        { id: "MITHRIL_DRILL_2", gate: { hotm: 3 }, prio: 2, why: "drill upgrade" },
+        { id: "TITANIUM_DRILL_1", gate: { hotm: 5 }, prio: 1, why: "titanium drill line starts (upgrades to DR-X655)" },
+        { ids: ["SORROW_HELMET", "SORROW_CHESTPLATE", "SORROW_LEGGINGS", "SORROW_BOOTS"], name: "Sorrow set", wiki: "Sorrow Armor", prio: 2, why: "24 Sorrow per piece (glacite drops)" },
+        { ids: ["ARMOR_OF_YOG_HELMET", "ARMOR_OF_YOG_CHESTPLATE", "ARMOR_OF_YOG_LEGGINGS", "ARMOR_OF_YOG_BOOTS"], name: "Armor of Yog", wiki: "Armor of Yog", gate: { coll: ["HARD_STONE", 5, "Hard Stone"] }, prio: 2, why: "Crimson mining set (40 Yoggies per piece)" },
+        { ids: ["DIVAN_HELMET", "DIVAN_CHESTPLATE", "DIVAN_LEGGINGS", "DIVAN_BOOTS"], name: "Armor of Divan", wiki: "Armor of Divan", gate: { hotm: 6 }, prio: 1, why: "top mining armor" },
+        { id: "GEMSTONE_GAUNTLET", gate: { coll: ["GEMSTONE_COLLECTION", 11, "Gemstone"] }, prio: 2, why: "gemstone-mining tool" },
+        { id: "DIVAN_DRILL", gate: { hotm: 7 }, prio: 1, why: "endgame drill" },
+      ],
+    },
+    {
+      skill: "farming", label: "Farming", wikiPage: "Farming",
+      tools: [],
+      toolHint: "Per-crop hoes and dicers live in your farming toolkit - push them to Tier 3.",
+      sets: [{ id: "HELIANTHUS", why: "mythic-tier farming set" }, { id: "FERMENTO" }, { id: "SQUASH" }, { id: "CROPIE" }, { id: "MELON" }, { id: "FARM" }],
+      equipSlots: { Necklace: ["PESTHUNTERS_NECKLACE", "BLOSSOM_NECKLACE", "LOTUS_NECKLACE"], Cloak: ["PESTHUNTERS_CLOAK", "LOTUS_CLOAK"], Belt: ["PESTHUNTERS_BELT", "BLOSSOM_BELT", "LOTUS_BELT"], Gloves: ["PESTHUNTERS_GLOVES", "BLOSSOM_BRACELET", "LOTUS_BRACELET"] },
+      pets: [
+        { type: "ELEPHANT", why: "+Farming Fortune - the farming pet" },
+        { type: "MOOSHROOM_COW", why: "fortune synergy on crops" },
+        { type: "SLUG", why: "pest control in the Garden" },
+        { type: "RABBIT", why: "farming XP boost" },
+      ],
+      note: "Farming Fortune multiplies harvests - it beats speed for progression.",
+      recipes: [
+        { id: "MELON_CHESTPLATE", gate: { coll: ["MELON", 9, "Melon"] }, prio: 2, why: "chestplate chain starts (each tier has a full set)" },
+        { id: "CROPIE_CHESTPLATE", prio: 2, why: "consumes the Melon chest" },
+        { id: "SQUASH_CHESTPLATE", prio: 2, why: "consumes the Cropie chest" },
+        { id: "FERMENTO_CHESTPLATE", prio: 1, why: "top craftable farming chest (consumes Squash)" },
+        { id: "RANCHERS_BOOTS", gate: { coll: ["PUMPKIN", 11, "Pumpkin"] }, prio: 1, why: "speed-control boots - a farming staple" },
+      ],
+    },
+    {
+      skill: "fishing", label: "Fishing", wikiPage: "Fishing",
+      tools: ["HELLFIRE_ROD", "ROD_OF_THE_SEA", "AUGER_ROD", "INFERNO_ROD", "MAGMA_ROD", "LEGEND_ROD", "CHAMP_ROD", "CHALLENGE_ROD", "STARTER_LAVA_ROD"],
+      toolHint: "Water and lava rods are separate lines - Rod of the Sea (water) and Inferno/Hellfire (lava).",
+      sets: [{ id: "MAGMA_LORD", why: "top set - Magma Cube Boss fragments" }, { id: "THUNDER", why: "8 Thunder Shards per piece" }, { id: "SHARK_SCALE" }, { id: "SPONGE" }, { id: "ANGLER" }],
+      equipSlots: { Necklace: ["THUNDERBOLT_NECKLACE", "BACKWATER_NECKLACE", "ANGLER_NECKLACE"], Cloak: ["FINWAVE_CLOAK", "BACKWATER_CLOAK", "ANGLER_CLOAK"], Belt: ["FINWAVE_BELT", "BACKWATER_BELT", "ANGLER_BELT"], Gloves: ["FINWAVE_GLOVES", "BACKWATER_GLOVES", "ANGLER_BRACELET"] },
+      pets: [
+        { type: "AMMONITE", why: "fishing speed scales with your HotM tier - elite Ironman fishing pet" },
+        { type: "FLYING_FISH", why: "fishing stats all-rounder" },
+        { type: "BABY_YETI", why: "strength + defense while fishing" },
+        { type: "DOLPHIN", why: "sea creature chance" },
+        { type: "SQUID", why: "fishing XP" },
+      ],
+      note: "Sea Creature Chance brings more creatures; Fishing Speed brings faster bites.",
+      recipes: [
+        { id: "SPONGE_CHESTPLATE", gate: { coll: ["SPONGE", 9, "Sponge"] }, prio: 2, why: "fishing armor chain starts" },
+        { id: "SHARK_SCALE_CHESTPLATE", prio: 2, why: "consumes the Sponge chest" },
+        { ids: ["THUNDER_HELMET", "THUNDER_CHESTPLATE", "THUNDER_LEGGINGS", "THUNDER_BOOTS"], name: "Thunder set", wiki: "Thunder Armor", prio: 1, why: "8 Thunder Shards per piece (Thunder boss)" },
+        { ids: ["MAGMA_LORD_HELMET", "MAGMA_LORD_CHESTPLATE", "MAGMA_LORD_LEGGINGS", "MAGMA_LORD_BOOTS"], name: "Magma Lord set", wiki: "Magma Lord Armor", prio: 1, why: "8 Magma Lord Fragments per piece" },
+        { id: "ROD_OF_THE_SEA", prio: 1, why: "top water rod" },
+        { id: "HELLFIRE_ROD", gate: { coll: ["MAGMA_FISH", 12, "Magmafish"] }, prio: 1, why: "endgame lava rod" },
+      ],
+    },
+    {
+      skill: "foraging", label: "Foraging & Hunting", wikiPage: "Foraging",
+      tools: ["TREECAPITATOR_AXE", "FIGSTONE_AXE", "JUNGLE_AXE"],
+      toolHint: "Foraging was recently reworked (Galatea update) - follow the wiki while the meta settles.",
+      sets: [{ id: "FIG", why: "Galatea foraging set" }, { id: "SILVER_HUNTER", why: "hunting set" }, { id: "CHALLENGER", why: "hunting combat set" }],
+      equipSlots: { Cloak: ["MANGROVE_VINE"], Necklace: ["MANGROVE_LOCKET"], Gloves: ["MANGROVE_GRIPPERS"] },
+      pets: [
+        { type: "MONKEY", why: "the foraging pet" },
+        { type: "OCELOT", why: "foraging XP" },
+      ],
+      note: "Newest content in the game - gear advice here is intentionally light; check the wiki.",
+      recipes: [],
+    },
+  ];
+
+  const skillLoadouts = SKILL_KITS.map((k) => {
+    const lvl = skillLevel(k.skill);
+    const toolId = bestOwnedId(k.tools);
+    const armor = bestOwnedSet(k.sets);
+    const { pick: pet, alt: petAlt, goal: petGoal } = pickPets(k.pets);
+    const equipment = Object.entries(k.equipSlots || {}).map(([slot, ids]) => ({ slot, id: bestOwnedId(ids) })).filter((e) => e.id);
+    const recipes = (k.recipes || []).map((r) => {
+      const ids = r.ids || [r.id];
+      const ownedCount = ids.filter((id) => ownedIds.has(id)).length;
+      const allOwned = ownedCount === ids.length;
+      const superseded = !allOwned && (SUPERSEDES[ids[0]] || []).some((s) => ownedIds.has(s));
+      const status = allOwned || superseded ? "owned" : gateOk(r.gate) ? "unlocked" : "locked";
+      let mats = null;
+      if (status !== "owned") {
+        const agg = {};
+        for (const id of ids) { if (ownedIds.has(id)) continue; for (const [mid, need] of RECIPE_MATS[id] || []) agg[mid] = (agg[mid] || 0) + need; }
+        if (Object.keys(agg).length) mats = Object.entries(agg).map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }));
+      }
+      const baseName = r.name || nice(ids[0]);
+      const wikiTitle = (s) => s.replace(/\b(Of|The|To|In|And)\b/g, (m, w, off) => (off === 0 ? m : m.toLowerCase()));
+      return {
+        name: baseName + (ids.length > 1 ? ` (${ownedCount}/${ids.length} pieces)` : ""),
+        req: 0, reqLabel: gateLabel(r.gate), why: r.why, prio: r.prio || 2,
+        wiki: "https://hypixelskyblock.minecraft.wiki/w/" + wikiTitle(r.wiki || baseName).replace(/ /g, "_"),
+        status, superseded, mats, stats: statText(sumStats(ids)) || null, delta: null,
+      };
+    });
+    const focus = recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio)[0] || null;
+    return {
+      skill: k.skill, label: k.label, level: lvl, toolId, toolHint: toolId ? null : k.toolHint, armor, pet, petAlt, petGoal,
+      equipment, recipes, focus, note: k.note,
+      wikiUrl: "https://hypixelskyblock.minecraft.wiki/w/" + k.wikiPage,
+    };
+  });
+
+  for (const S of skillLoadouts) {
+    if (S.focus) {
+      rec(2, "Skills", `${S.label}: craft the ${S.focus.name}`, `${S.focus.why}${S.focus.stats ? ` (${S.focus.stats})` : ""}.`, "Materials and the full ladder are on the Skill Loadouts card.");
+    }
+  }
+
+  // =================================================================
   // CRAFT PRIORITIES - gate-checked against YOUR profile.
   // Recipes/requirements verified against the NotEnoughUpdates item
   // repo (2026-07-08). Status per target:
@@ -1195,9 +1355,6 @@ async function main() {
   // Weighing order when one resource has competing uses:
   //   permanent accessories > daily tools > armor (gets replaced) > hoarding
   // =================================================================
-
-  const collTier = (name) => member.collectionTiers?.[name] ?? 0;
-  const potm = member.stats?.mining?.peakOfTheMountainLevel ?? 0;
 
   // check builders: gate=true means a hard unlock (slayer/collection/base item)
   const gSlayer = (boss, lvl) => ({ label: `${boss[0].toUpperCase() + boss.slice(1)} Slayer ${lvl} (you: ${slayerLvl(boss)})`, ok: slayerLvl(boss) >= lvl, gate: true });
@@ -1546,6 +1703,15 @@ async function main() {
         weapon: L.weaponId ? itemFor(L.weaponId) : null,
         armorPieces: L.armor ? L.armor.pieceIds.map(itemFor) : [],
         equipment: L.equipment.map((e) => ({ slot: e.slot, item: itemFor(e.id) })),
+      };
+    }),
+    skillLoadouts: skillLoadouts.map((S) => {
+      const itemFor = (id) => (fullItemById[id] ? slim(fullItemById[id]) : { skyblockId: id, name: nice(id), lore: [] });
+      return {
+        ...S,
+        tool: S.toolId ? itemFor(S.toolId) : null,
+        armorPieces: S.armor ? S.armor.pieceIds.map(itemFor) : [],
+        equipment: S.equipment.map((e) => ({ slot: e.slot, item: itemFor(e.id) })),
       };
     }),
     craftPriorities,
