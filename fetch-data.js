@@ -1165,8 +1165,15 @@ async function main() {
       const allOwned = ownedCount === ids.length;
       const superseded = !allOwned && (SUPERSEDES[ids[0]] || []).some((s) => ownedIds.has(s));
       const status = allOwned || superseded ? "owned" : lvl >= r.req ? "unlocked" : "locked";
+      // sets: per-piece built/missing state with each piece's outstanding materials
+      const pieces = ids.length > 1 && status !== "owned" ? ids.map((id) => ({
+        name: nice(id), owned: ownedIds.has(id),
+        mats: !ownedIds.has(id) && RECIPE_MATS[id]
+          ? RECIPE_MATS[id].map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }))
+          : null,
+      })) : null;
       let mats = null;
-      if (status !== "owned") { // sum materials across the pieces still missing
+      if (status !== "owned" && !pieces) {
         const agg = {};
         for (const id of ids) {
           if (ownedIds.has(id)) continue;
@@ -1189,7 +1196,7 @@ async function main() {
           if (d > 0 || s > 0) delta = `${d > 0 ? `+${d} dmg` : ""}${d > 0 && s > 0 ? ", " : ""}${s > 0 ? `+${s} str` : ""} vs your ${nice(weaponId)}`;
         }
       }
-      return { name, req: r.req, reqLabel: `LVL ${r.req}`, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats, stats: statText(stats) || null, delta, inMinion: r.inMinion || false };
+      return { name, req: r.req, reqLabel: `LVL ${r.req}`, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats, pieces, stats: statText(stats) || null, delta, inMinion: r.inMinion || false };
     });
     // what to craft first among currently-unlocked recipes (skip items we
     // can't verify, like minion-installed upgrades - no point nagging)
@@ -1340,8 +1347,14 @@ async function main() {
       const allOwned = ownedCount === ids.length;
       const superseded = !allOwned && (SUPERSEDES[ids[0]] || []).some((s) => ownedIds.has(s));
       const status = allOwned || superseded ? "owned" : gateOk(r.gate) ? "unlocked" : "locked";
+      const pieces = ids.length > 1 && status !== "owned" ? ids.map((id) => ({
+        name: nice(id), owned: ownedIds.has(id),
+        mats: !ownedIds.has(id) && RECIPE_MATS[id]
+          ? RECIPE_MATS[id].map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }))
+          : null,
+      })) : null;
       let mats = null;
-      if (status !== "owned") {
+      if (status !== "owned" && !pieces) {
         const agg = {};
         for (const id of ids) { if (ownedIds.has(id)) continue; for (const [mid, need] of RECIPE_MATS[id] || []) agg[mid] = (agg[mid] || 0) + need; }
         if (Object.keys(agg).length) mats = Object.entries(agg).map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }));
@@ -1352,7 +1365,7 @@ async function main() {
         name: baseName + (ids.length > 1 ? ` (${ownedCount}/${ids.length} pieces)` : ""),
         req: 0, reqLabel: gateLabel(r.gate), why: r.why, prio: r.prio || 2,
         wiki: "https://hypixelskyblock.minecraft.wiki/w/" + wikiTitle(r.wiki || baseName).replace(/ /g, "_"),
-        status, superseded, mats, stats: statText(sumStats(ids)) || null, delta: null,
+        status, superseded, mats, pieces, stats: statText(sumStats(ids)) || null, delta: null,
       };
     });
     const focus = recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio)[0] || null;

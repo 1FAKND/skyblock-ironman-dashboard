@@ -234,9 +234,15 @@ function render() {
     const st = r.status === "owned" ? ["✔", "var(--green)", r.superseded ? "done - you own the upgrade" : "owned"] :
                r.status === "unlocked" ? (r.inMinion ? ["🔨", "var(--dim)", "unlocked - undetectable once installed in a minion, so no nagging"] : ["🔨", "var(--med)", "UNLOCKED - craft it"]) :
                ["🔒", "var(--dim)", `needs ${r.reqLabel}`];
-    const mats = r.mats ? `<div style="font-size:12px;color:var(--dim);margin:1px 0 4px 22px">needs: ${r.mats.map(m =>
+    const matSpans = (list) => list.map(m =>
       `<span style="color:${m.ok ? "var(--green)" : "var(--red)"}">${m.ok ? "✓" : "✗"} ${m.need}x ${esc(m.name)} <span style="color:var(--dim)">(you: ${m.have.toLocaleString("en-US")})</span></span>`
-    ).join(" · ")}</div>` : "";
+    ).join(" · ");
+    const mats = r.pieces
+      ? r.pieces.map(p => p.owned
+          ? `<div style="font-size:12px;color:var(--green);margin:1px 0 1px 22px">✔ ${esc(p.name)} - built</div>`
+          : `<div style="font-size:12px;margin:1px 0 1px 22px"><span style="color:var(--red)">✗ ${esc(p.name)}</span>${p.mats ? ` <span style="color:var(--dim)">- needs: ${matSpans(p.mats)}</span>` : ` <span style="color:var(--dim)">- not built</span>`}</div>`
+        ).join("") + `<div style="margin-bottom:4px"></div>`
+      : r.mats ? `<div style="font-size:12px;color:var(--dim);margin:1px 0 4px 22px">needs: ${matSpans(r.mats)}</div>` : "";
     const prioChip = `<span style="color:${r.prio === 1 ? "var(--gold)" : "var(--dim)"}">${["①", "②", "③"][(r.prio || 2) - 1]}</span>`;
     const nm = r.wiki ? `<a href="${esc(r.wiki)}" target="_blank" rel="noopener" style="color:inherit;text-decoration:underline dotted;text-underline-offset:2px">${esc(r.name)}</a>` : esc(r.name);
     const statChip = r.stats ? ` <span style="color:var(--aqua)">[${esc(r.stats)}]</span>` : "";
