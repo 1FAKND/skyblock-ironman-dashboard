@@ -274,7 +274,7 @@ function render() {
   // ---- Slayer loadouts (best owned kit per slayer)
   if (D.slayerLoadouts && D.slayerLoadouts.length) {
     html += `<h3 style="margin:22px 0 4px;color:var(--aqua);font-size:15px">SUGGESTED LOADOUTS - BUILT FROM GEAR YOU OWN</h3>
-    <div class="hint">What to equip for each slayer at your current level (museum-donated items excluded). Suggested tier is a "comfortably farmable" estimate, not an unlock requirement. Tip: save each kit as an in-game <b>/loadout</b> preset.</div>`;
+    <div class="hint">What to equip for each slayer at your current level (museum-donated items excluded). Suggested tier is a "comfortably farmable" estimate, not an unlock requirement. Tip: save each kit as an in-game <b>/loadout</b> preset. Fresh craft still showing as uncrafted? Hypixel syncs inventories when you <b>switch lobbies</b> - hop once, then refresh.</div>`;
     for (const L of D.slayerLoadouts) {
       html += `<div class="card" style="margin-bottom:10px;padding:12px 16px">
         <div style="display:flex;justify-content:space-between;flex-wrap:wrap;gap:6px;align-items:baseline">

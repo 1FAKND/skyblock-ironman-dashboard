@@ -173,8 +173,10 @@ async function main() {
   // ---- member data
   const member = await fetchJson(`${API}/profile/${account.id}/${profile.profileId}`);
 
-  // ---- inventories we analyze (all storage, so gear analysis sees everything)
-  const wantInv = (n) => /^(armor|equipment|wardrobe|talisman_bag|inventory|ender_chest|fishing_bag|farming_toolkit|hunting_toolkit|museum|backpack_\d+)$/.test(n);
+  // ---- inventories we analyze: everything except icon/sack display bags,
+  // so ownership checks see all real storage (incl. the Loadouts update's
+  // equipment_wardrobe and the personal vault)
+  const wantInv = (n) => !/^(icons_backpack|sacks_bag)$/.test(n);
   const invIndex = Object.fromEntries((member.inventories || []).map((i) => [i.name, i.id]));
   const invs = {};
   for (const [name, id] of Object.entries(invIndex)) {
