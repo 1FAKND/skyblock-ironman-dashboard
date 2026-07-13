@@ -992,11 +992,11 @@ async function main() {
       recipes: [
         { id: "VOIDWALKER_KATANA", req: 1, prio: 1, why: "tier-1 katana" },
         { id: "SOULFLOW_PILE", req: 2, prio: 3, why: "starts the soulflow economy" },
-        { id: "LESSER_SOULFLOW_ENGINE", req: 2, prio: 1, why: "auto-converts Raw Soulflow in your bag - earlier = more total soulflow" },
+        { id: "LESSER_SOULFLOW_ENGINE", req: 2, prio: 1, inMinion: true, why: "minion upgrade: generates Soulflow (halves that minion's output)" },
         { id: "VOIDEDGE_KATANA", req: 3, prio: 1, why: "tier-2 katana" },
         { ids: ["FINAL_DESTINATION_HELMET", "FINAL_DESTINATION_CHESTPLATE", "FINAL_DESTINATION_LEGGINGS", "FINAL_DESTINATION_BOOTS"], name: "Final Destination set", wiki: "Final Destination Armor", req: 4, prio: 2, why: "stats grow per Enderman kill - the XP-grind set" },
         { id: "SOULFLOW_BATTERY", req: 5, prio: 3, why: "soulflow accessory tier 2" },
-        { id: "SOULFLOW_ENGINE", req: 5, prio: 2, why: "faster passive soulflow" },
+        { id: "SOULFLOW_ENGINE", req: 5, prio: 2, inMinion: true, why: "upgraded engine (best on a Voidling minion: +3% output per level)" },
         { id: "VORPAL_KATANA", req: 5, prio: 1, why: "tier-3 katana - first pick at 5, speeds every kill after" },
         { id: "JUJU_SHORTBOW", req: 5, prio: 1, why: "THE Ironman dungeon bow - right after the Vorpal" },
         { id: "ASPECT_OF_THE_VOID", req: 6, prio: 2, why: "permanent utility teleport" },
@@ -1189,10 +1189,11 @@ async function main() {
           if (d > 0 || s > 0) delta = `${d > 0 ? `+${d} dmg` : ""}${d > 0 && s > 0 ? ", " : ""}${s > 0 ? `+${s} str` : ""} vs your ${nice(weaponId)}`;
         }
       }
-      return { name, req: r.req, reqLabel: `LVL ${r.req}`, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats, stats: statText(stats) || null, delta };
+      return { name, req: r.req, reqLabel: `LVL ${r.req}`, why: r.why, prio: r.prio || 2, wiki, status, superseded, mats, stats: statText(stats) || null, delta, inMinion: r.inMinion || false };
     });
-    // what to craft first among currently-unlocked recipes
-    const focus = recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio || a.req - b.req)[0] || null;
+    // what to craft first among currently-unlocked recipes (skip items we
+    // can't verify, like minion-installed upgrades - no point nagging)
+    const focus = recipes.filter((r) => r.status === "unlocked" && !r.inMinion).sort((a, b) => a.prio - b.prio || a.req - b.req)[0] || null;
     return {
       boss: k.boss, label: k.label, level: lvl, suggestedTier: suggestedTier(lvl, k.maxTier), maxTier: k.maxTier,
       weaponId, weaponHint: weaponId ? null : k.weaponHint, armor, pet, petAlt, petGoal, petConditionals, equipment, recipes, focus, note: k.note,
@@ -1204,7 +1205,7 @@ async function main() {
   // unlocked-but-uncrafted slayer recipes = free progression sitting on the table
   for (const L of slayerLoadouts) {
     if (L.locked) continue;
-    const ready = L.recipes.filter((r) => r.status === "unlocked").sort((a, b) => a.prio - b.prio || a.req - b.req);
+    const ready = L.recipes.filter((r) => r.status === "unlocked" && !r.inMinion).sort((a, b) => a.prio - b.prio || a.req - b.req);
     if (ready.length) {
       rec(2, "Slayers", `${L.label.split(" (")[0]}: ${ready.length} unlocked recipe(s) you haven't made`,
         `Craft first: ${ready[0].name} (${ready[0].why}).${ready.length > 1 ? ` Then: ${ready.slice(1, 3).map((r) => r.name).join(", ")}${ready.length > 3 ? ", …" : ""}.` : ""}`,
