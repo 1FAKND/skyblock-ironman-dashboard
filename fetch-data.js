@@ -526,7 +526,7 @@ async function main() {
     { chain: ["SPIDER_TALISMAN", "SPIDER_RING", "SPIDER_ARTIFACT"], note: "Tarantula slayer materials" },
     { chain: ["RED_CLAW_TALISMAN", "RED_CLAW_RING", "RED_CLAW_ARTIFACT"], note: "Sven slayer materials" },
     { chain: ["SEA_CREATURE_TALISMAN", "SEA_CREATURE_RING", "SEA_CREATURE_ARTIFACT"], note: "fishing materials" },
-    { chain: ["INTIMIDATION_TALISMAN", "INTIMIDATION_RING", "INTIMIDATION_ARTIFACT"], note: "cheap combat craft" },
+    { chain: ["INTIMIDATION_TALISMAN", "INTIMIDATION_RING", "INTIMIDATION_ARTIFACT"], note: "Fear Mongerer: ring + 100 Purple Candy" },
     { chain: ["SPEED_TALISMAN", "SPEED_RING", "SPEED_ARTIFACT"], note: "Sugar Cane collection" },
     { chain: ["POWER_TALISMAN", "POWER_RING", "POWER_ARTIFACT"], note: "uses flawless gemstones" },
     { chain: ["MINERAL_TALISMAN", "GLOSSY_MINERAL_TALISMAN"], note: "gemstone craft" },
@@ -1581,6 +1581,7 @@ async function main() {
   target("JERRY_TALISMAN_GOLDEN", "Golden Jerry Talisman", [
     gBase("JERRY_TALISMAN_PURPLE", "Purple Jerry Talisman"),
     gMat(5, countItems("JERRY_TALISMAN_PURPLE"), "Purple Jerry Talisman copies"),
+    gInfo("⏳ Only obtainable during Jerry's Workshop (winter)"),
   ], "Needs five Purple Jerry Talismans total - stack them up across Jerry's Workshop events.");
 
   target("TREASURE_RING", "Treasure Ring", [
@@ -1628,9 +1629,18 @@ async function main() {
     JERRY_TALISMAN_GOLDEN: gInfo("5x Purple Jerry Talisman", countItems("JERRY_TALISMAN_PURPLE") >= 5),
     SOULFLOW_BATTERY: gSlayer("enderman", 5), SOULFLOW_SUPERCELL: gSlayer("enderman", 7), // wiki table levels; NEU's EMAN_2 on these is wrong
   };
+  // some upgrades are only purchasable while a seasonal event runs (verified:
+  // the Fear Mongerer sells the Intimidation/Bat/Candy chains during Spooky)
+  const EVENT_GATED = {
+    INTIMIDATION_RING: "Spooky Festival (Fear Mongerer)", INTIMIDATION_ARTIFACT: "Spooky Festival (Fear Mongerer)",
+    BAT_RING: "Spooky Festival (Fear Mongerer)", BAT_ARTIFACT: "Spooky Festival (Fear Mongerer)",
+    CANDY_RING: "Spooky Festival (Fear Mongerer)", CANDY_ARTIFACT: "Spooky Festival (Fear Mongerer)", CANDY_RELIC: "Spooky Festival (Fear Mongerer)",
+    JERRY_TALISMAN_BLUE: "Jerry's Workshop (winter)", JERRY_TALISMAN_PURPLE: "Jerry's Workshop (winter)", JERRY_TALISMAN_GOLDEN: "Jerry's Workshop (winter)",
+  };
   for (const u of accUpgrades) {
     const g = TARGET_GATES[u.nextId];
     if (g) { u.requires = g.label; u.blocked = !g.ok; }
+    if (EVENT_GATED[u.nextId]) u.event = EVENT_GATED[u.nextId];
   }
 
   // ---- fold tracker results into recommendations ----

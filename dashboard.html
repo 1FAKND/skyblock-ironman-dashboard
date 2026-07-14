@@ -443,7 +443,7 @@ function render() {
     if (AT.upgrades.length) {
       html += `<h3 style="margin:8px 0;color:var(--green);font-size:15px">UPGRADE CHAINS - YOU OWN THE LOWER TIER</h3>
       <table class="plain"><tr><th>You own</th><th>Upgrade to</th><th>Materials</th><th>Unlock requirement</th></tr>` +
-        AT.upgrades.map(u => `<tr><td>${esc(u.have)}</td><td style="color:${u.blocked ? "var(--dim)" : "var(--green)"}">${esc(u.next)}</td><td style="color:var(--dim)">${esc(u.note)}</td><td style="color:${u.blocked ? "var(--red)" : "var(--green)"}">${u.requires ? `${u.blocked ? "✗" : "✓"} ${esc(u.requires)}` : "✓ none"}</td></tr>`).join("") +
+        AT.upgrades.map(u => `<tr><td>${esc(u.have)}</td><td style="color:${u.blocked ? "var(--dim)" : "var(--green)"}">${esc(u.next)}</td><td style="color:var(--dim)">${esc(u.note)}${u.event ? ` <span style="color:var(--med)">⏳ ${esc(u.event)} only</span>` : ""}</td><td style="color:${u.blocked ? "var(--red)" : "var(--green)"}">${u.requires ? `${u.blocked ? "✗" : "✓"} ${esc(u.requires)}` : "✓ none"}</td></tr>`).join("") +
         `</table>`;
     } else {
       html += `<p class="hint">No in-chain upgrades pending - every accessory family you own is at its top tier.</p>`;
