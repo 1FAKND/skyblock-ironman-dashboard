@@ -541,6 +541,11 @@ async function main() {
     { chain: ["SOULFLOW_PILE", "SOULFLOW_BATTERY", "SOULFLOW_SUPERCELL"], note: "Voidgloom soulflow" },
     { chain: ["WITHER_ARTIFACT", "WITHER_RELIC"], note: "wither essence" },
     { chain: ["SHADY_RING", "CROOKED_ARTIFACT", "SEAL_OF_THE_FAMILY"], note: "Dark Auction" },
+    { chain: ["HASTE_RING", "HASTE_ARTIFACT"], note: "256x Enchanted Cobblestone" },
+    { chain: ["VACCINE_TALISMAN", "VACCINE_RING", "VACCINE_ARTIFACT"], note: "8x Poison Sample (fishing drop)" },
+    { chain: ["EMERALD_RING", "EMERALD_ARTIFACT"], note: "36x Ench Emerald Block + Avaricious Chalice (rare drop)" },
+    { chain: ["BAT_PERSON_TALISMAN", "BAT_PERSON_RING", "BAT_PERSON_ARTIFACT"], note: "Spooky Shards + Ectoplasm" },
+    { chain: ["GREAT_SPOOK_TALISMAN", "GREAT_SPOOK_RING", "GREAT_SPOOK_ARTIFACT"], note: "Great Spook event reward" },
   ];
   const accUpgrades = [];
   for (const { chain, note } of ACCESSORY_CHAINS) {
@@ -1636,6 +1641,8 @@ async function main() {
     BAT_RING: "Spooky Festival (Fear Mongerer)", BAT_ARTIFACT: "Spooky Festival (Fear Mongerer)",
     CANDY_RING: "Spooky Festival (Fear Mongerer)", CANDY_ARTIFACT: "Spooky Festival (Fear Mongerer)", CANDY_RELIC: "Spooky Festival (Fear Mongerer)",
     JERRY_TALISMAN_BLUE: "Jerry's Workshop (winter)", JERRY_TALISMAN_PURPLE: "Jerry's Workshop (winter)", JERRY_TALISMAN_GOLDEN: "Jerry's Workshop (winter)",
+    BAT_PERSON_RING: "Spooky season (Ectoplasm/Spooky Shard materials)", BAT_PERSON_ARTIFACT: "Spooky season (Ectoplasm/Spooky Shard materials)",
+    GREAT_SPOOK_ARTIFACT: "Great Spook event",
   };
   for (const u of accUpgrades) {
     const g = TARGET_GATES[u.nextId];
