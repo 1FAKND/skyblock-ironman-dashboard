@@ -1083,6 +1083,18 @@ async function main() {
     RANCHERS_BOOTS: [["POLISHED_PUMPKIN", 16], ["FARMER_BOOTS", 1]],
     ROD_OF_THE_SEA: [["ENCHANTED_SHARK_FIN", 4], ["GREAT_WHITE_SHARK_TOOTH", 4], ["LEGEND_ROD", 1]],
     SORROW_CHESTPLATE: [["SORROW", 24]],
+    // accessory chain targets (audit-verified)
+    HASTE_ARTIFACT: [["ENCHANTED_COBBLESTONE", 256], ["HASTE_RING", 1]],
+    VACCINE_ARTIFACT: [["POISON_SAMPLE", 8], ["VACCINE_RING", 1]],
+    EMERALD_ARTIFACT: [["ENCHANTED_EMERALD_BLOCK", 36], ["EMERALD_RING", 1], ["AVARICIOUS_CHALICE", 1]],
+    BAT_PERSON_RING: [["SPOOKY_SHARD", 4], ["ECTOPLASM", 32], ["BAT_PERSON_TALISMAN", 1]],
+    BAT_PERSON_ARTIFACT: [["SPOOKY_SHARD", 16], ["ECTOPLASM", 128], ["BAT_PERSON_RING", 1]],
+    SEA_CREATURE_ARTIFACT: [["ENCHANTED_SPONGE", 64], ["SEA_CREATURE_RING", 1]],
+    SPEED_ARTIFACT: [["ENCHANTED_SUGAR_CANE", 48], ["SPEED_RING", 1]],
+    POWER_ARTIFACT: [["GEMSTONE_MIXTURE", 32], ["POWER_RING", 1]],
+    TREASURE_RING: [["TREASURE_TALISMAN", 8]],
+    JERRY_TALISMAN_GOLDEN: [["JERRY_TALISMAN_PURPLE", 5]],
+    INTIMIDATION_ARTIFACT: [["PURPLE_CANDY", 100], ["INTIMIDATION_RING", 1]],
   };
 
   // base stats per recipe item (NEU lore, checked 2026-07-09) - used to show
@@ -1648,6 +1660,9 @@ async function main() {
     const g = TARGET_GATES[u.nextId];
     if (g) { u.requires = g.label; u.blocked = !g.ok; }
     if (EVENT_GATED[u.nextId]) u.event = EVENT_GATED[u.nextId];
+    if (RECIPE_MATS[u.nextId]) {
+      u.mats = RECIPE_MATS[u.nextId].map(([mid, need]) => ({ name: nice(mid), need, have: matHave(mid), ok: matHave(mid) >= need }));
+    }
   }
 
   // ---- fold tracker results into recommendations ----
