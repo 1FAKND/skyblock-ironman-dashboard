@@ -1710,6 +1710,23 @@ async function main() {
   const updateAvailable = await updatePromise;
   if (updateAvailable) console.log(`\nUpdate available: v${updateAvailable.current} → v${updateAvailable.latest} (${updateAvailable.url})`);
 
+  // full accessory collection from the NEU-derived family database
+  let accessoryCollection = null;
+  try {
+    const adb = JSON.parse(fs.readFileSync(path.join(HERE, "accessory-db.json"), "utf8"));
+    const families = adb.families.map((ids) => {
+      const stages = ids.map((id) => ({ id, name: adb.info[id]?.n || nice(id), req: adb.info[id]?.q || "", owned: ownedIds.has(id) }));
+      return { stages, started: stages.some((s) => s.owned), complete: stages[stages.length - 1].owned };
+    });
+    accessoryCollection = {
+      familiesOwned: families.filter((f) => f.started).length,
+      familiesTotal: families.length,
+      stagesOwned: families.reduce((a, f) => a + f.stages.filter((s) => s.owned).length, 0),
+      stagesTotal: families.reduce((a, f) => a + f.stages.length, 0),
+      families,
+    };
+  } catch { /* accessory-db.json missing - section simply won't render */ }
+
   const data = {
     generatedAt: new Date().toISOString(),
     version: VERSION,
@@ -1793,6 +1810,7 @@ async function main() {
       upgrades: accUpgrades,
       missing: accMissing,
     },
+    accessoryCollection,
     events,
     slayerLoadouts: slayerLoadouts.map((L) => {
       const itemFor = (id) => (fullItemById[id] ? slim(fullItemById[id]) : { skyblockId: id, name: nice(id), lore: [] });

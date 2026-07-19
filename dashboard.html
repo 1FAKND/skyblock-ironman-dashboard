@@ -179,7 +179,7 @@ function render() {
   <nav class="toc">
     <a href="#recs">✅ To-Do</a><a href="#skills">Skills</a><a href="#slayers">Slayers</a><a href="#skillgear">Skill Loadouts</a><a href="#dungeons">Dungeons</a>
     <a href="#crafts">Craft First</a><a href="#events">Events</a><a href="#gear">Gear</a><a href="#gearreview">Gear by Activity</a><a href="#acctracker">Accessory Tracker</a>
-    <a href="#accessories">Accessories</a><a href="#pets">Pets</a><a href="#minions">Minions</a>
+    <a href="#accessories">Accessories</a><a href="#acccollection">Collection</a><a href="#pets">Pets</a><a href="#minions">Minions</a>
   </nav>`;
 
   // ---- Recommendations
@@ -482,6 +482,28 @@ function render() {
       `<tr><td>${mc(i.name)}</td><td class="r-${esc(i.rarity || "")}">${esc(i.rarity || "?")}</td><td>${i.recombobulated ? "✔" : ""}</td></tr>`).join("")}
     </table></details>` : ""}
   </section>`;
+
+  // ---- Accessory Collection (full family database)
+  const AC = D.accessoryCollection;
+  if (AC) {
+    const fam = (f) => `<div style="font-size:13px;margin:2px 0">` + f.stages.map(s =>
+      `<span style="color:${s.owned ? "var(--green)" : "var(--red)"}">${s.owned ? "✓" : "✗"} ${esc(s.name)}${!s.owned && s.req ? ` <span style="color:var(--dim);font-size:11.5px">(${esc(s.req)})</span>` : ""}</span>`
+    ).join(` <span style="color:var(--dim)">→</span> `) + `</div>`;
+    const inProgress = AC.families.filter(f => f.started && !f.complete);
+    const complete = AC.families.filter(f => f.complete);
+    const notStarted = AC.families.filter(f => !f.started);
+    html += `<section id="acccollection"><h2>Accessory Collection</h2>
+    <div class="hint">Every upgradable accessory family (NEU item database) with per-stage requirements - green you own, red you don't. Standalone accessories you own are listed in the Accessories section above.</div>
+    <div class="statrow">
+      <div class="stat"><div class="k">Families started</div><div class="v">${AC.familiesOwned} / ${AC.familiesTotal}</div></div>
+      <div class="stat"><div class="k">Stages owned</div><div class="v">${AC.stagesOwned} / ${AC.stagesTotal}</div></div>
+      <div class="stat"><div class="k">Fully upgraded</div><div class="v">${complete.length}</div></div>
+    </div>
+    ${inProgress.length ? `<h3 style="margin:12px 0 6px;color:var(--med);font-size:14px">IN PROGRESS (${inProgress.length})</h3>${inProgress.map(fam).join("")}` : ""}
+    ${complete.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--green)">✓ Fully upgraded families (${complete.length})</summary>${complete.map(fam).join("")}</details>` : ""}
+    ${notStarted.length ? `<details style="margin-top:10px"><summary style="cursor:pointer;color:var(--dim)">Not started (${notStarted.length})</summary>${notStarted.map(fam).join("")}</details>` : ""}
+    </section>`;
+  }
 
   // ---- Pets
   const PT = D.pets;
