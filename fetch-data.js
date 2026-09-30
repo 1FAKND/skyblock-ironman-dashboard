@@ -793,7 +793,19 @@ async function main() {
       GOLDEN_FLEECE: [["SHIMMERING_WOOL", 1], ["BRAIDED_GRIFFIN_FEATHER", 1], ["ENCHANTED_GOLD_BLOCK", 256], ["ENCHANTED_WOOL", 128]],
       DAEDALUS_NOTES: [["DAEDALUS_STICK", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 32], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_PAPER", 128]],
       BRAIDED_GRIFFIN_FEATHER: [["GRIFFIN_FEATHER", 160], ["SOUL_STRING", 256]],
+      ZOG_ANVIL: [["ANCIENT_CLAW", 96], ["GRIFFIN_FEATHER", 16]],
+      HEPHAESTUS_ANVIL: [["ZOG_ANVIL", 1], ["BRAIDED_GRIFFIN_FEATHER", 2], ["MYTHOS_FRAGMENT", 32], ["ENCHANTED_ANCIENT_CLAW", 128], ["ENCHANTED_GOLD_BLOCK", 64]],
     };
+    // Hephaestus upgrades: 3 copies of a mob-dropped pet item + a Hephaestus Anvil
+    // (effects from the wiki's event pet item table)
+    const HEPH_INFO = [
+      { base: "MINOS_RELIC", up: "HEPHAESTUS_RELIC", from: "Minos Champion", now: "+33.3% all pet stats", then: "+50% all pet stats" },
+      { base: "ANTIQUE_REMEDIES", up: "HEPHAESTUS_REMEDIES", from: "Harpy", now: "+80% pet base Strength", then: "+100% pet base Strength" },
+      { base: "CROCHET_TIGER_PLUSHIE", up: "HEPHAESTUS_PLUSHIE", from: "Siamese Lynx", now: "+35 Bonus Attack Speed", then: "+50 Bonus Attack Speed" },
+      { base: "DWARF_TURTLE_SHELMET", up: "HEPHAESTUS_SHELMET", from: "Gaia Construct", now: "+10 True Defense, no knockback", then: "+20 True Defense, no knockback" },
+      { base: "CRETAN_URN", up: "HEPHAESTUS_URN", from: "Cretan Bull", now: "+5 Pet Luck", then: "+10 Pet Luck" },
+      { base: "WASHED_UP_SOUVENIR", up: "HEPHAESTUS_SOUVENIR", from: "Stranded Nymph", now: "+5 Sea Creature Chance", then: "+10 Sea Creature Chance" },
+    ];
     const HEPH = { ANTIQUE_REMEDIES: "HEPHAESTUS_REMEDIES", CRETAN_URN: "HEPHAESTUS_URN", CROCHET_TIGER_PLUSHIE: "HEPHAESTUS_PLUSHIE", DWARF_TURTLE_SHELMET: "HEPHAESTUS_SHELMET", MINOS_RELIC: "HEPHAESTUS_RELIC", WASHED_UP_SOUVENIR: "HEPHAESTUS_SOUVENIR" };
     for (const [base, up] of Object.entries(HEPH)) DR[up] = [[base, 3], ["HEPHAESTUS_ANVIL", 1]];
     // owning an upgrade counts as having obtained what it consumed
@@ -832,6 +844,18 @@ async function main() {
       if (st.pieces) st.canNow = affordable(ids);
       return st;
     };
+    const heldBy = (id) => pets.filter((p) => p.heldItem === id).map((p) => `${tierName(p.tier)} ${nice(p.type)}`);
+    const ownAnvil = has("HEPHAESTUS_ANVIL");
+    const hephRows = HEPH_INFO.map((h) => {
+      const held = heldBy(h.base);
+      const copies = evHave(h.base) + held.length;
+      const done = has(h.up);
+      return {
+        name: nice(h.up), base: nice(h.base), from: h.from, now: h.now, then: h.then, copies, held, done,
+        status: done ? "made" : copies >= 3 ? (ownAnvil ? "ready to craft" : "enough copies - needs the anvil") : `need ${3 - copies} more (${h.from} drop)`,
+      };
+    });
+    const hephDone = hephRows.filter((r) => r.done).length;
     const steps = [
       step("Buy a Griffin Pet (25k coins) and an Ancestral Spade (5k + 32 Gold Ingot) from Diana", !!griffin && (has("ANCESTRAL_SPADE") || has("ARCHAIC_SPADE") || has("DEIFIC_SPADE"))),
       step("Craft the Sword of Revelations - Hilt of Revelations drops from Minos Hunters", has("SWORD_OF_REVELATIONS") || has("DAEDALUS_AXE"),
@@ -848,6 +872,9 @@ async function main() {
       pieceStep(`Mythos equipment (${cnt(mythosEquipIds)}/4) - each piece upgrades the matching Challenger piece`, mythosEquipIds),
       step("Deific Spade - 8-burrow chains and a better Mythos Fragment rate (9.31%)", has("DEIFIC_SPADE"),
         [["ARCHAIC_SPADE", 1], ["HILT_OF_REVELATIONS", 1], ["BRAIDED_GRIFFIN_FEATHER", 1], ["MYTHOS_FRAGMENT", 16], ["ENCHANTED_ANCIENT_CLAW", 128], ["ENCHANTED_GOLD_BLOCK", 128]]),
+      step("Zog Anvil - the base of the Hephaestus Anvil (it also upgrades Zog's pet items)", has("ZOG_ANVIL") || ownAnvil || hephDone > 0, DR.ZOG_ANVIL),
+      step("Hephaestus Anvil - merges 3 copies of an event pet item into a stronger Hephaestus version", ownAnvil || hephDone > 0, DR.HEPHAESTUS_ANVIL),
+      step(`Hephaestus pet items (${hephDone}/6) - see the upgrade table below`, hephDone === 6),
       step("Daedalus Blade - needs 2 Daedalus Sticks (rare Minotaur drop, Epic+ Griffin)", has("DAEDALUS_AXE"),
         [["DAEDALUS_STICK", 2], ["SWORD_OF_REVELATIONS", 1], ["ENCHANTED_GOLD_BLOCK", 48]]),
       step("Griffin to Mythic (stone + 1M at Kat) - unlocks Manticore and King Minos", gTier >= 5,
@@ -865,7 +892,8 @@ async function main() {
       ["Armor", [...armorSlots.map((s) => src("CHALLENGER_" + s, "Craft")), ...armorSlots.map((s) => src("MYTHOS_" + s, "Craft - consumes the Challenger piece")), src("CROWN_OF_GREED", "Drop from King Minos (Mythic Griffin)"), src("CROWN_OF_AVARICE", "Craft")]],
       ["Equipment", [...equipSlots.map((s) => src("CHALLENGER_" + s, "Craft")), ...equipSlots.map((s) => src("MYTHOS_" + s, "Craft - consumes the Challenger piece")), src("MANTICORE_CLAW", "Craft - needs a Manti-core"), src("GOLDEN_FLEECE", "Craft - +15 Tracking on burrows")]],
       ["Pet items (mob drops)", [src("ANTIQUE_REMEDIES", "Drop from Harpy"), src("CRETAN_URN", "Drop from Cretan Bull"), src("CROCHET_TIGER_PLUSHIE", "Drop from Siamese Lynx"), src("DWARF_TURTLE_SHELMET", "Drop from Gaia Construct"), src("MINOS_RELIC", "Drop from Minos Champion"), src("WASHED_UP_SOUVENIR", "Drop from Stranded Nymph")]],
-      ["Hephaestus upgrades", Object.values(HEPH).map((id) => src(id, "3 of the base item + a Hephaestus Anvil"))],
+      ["Anvils", [src("ZOG_ANVIL", "Craft: 96 Ancient Claw + 16 Griffin Feather"), src("HEPHAESTUS_ANVIL", "Craft from a Zog Anvil (or a Raffle of the Century reward)")]],
+      ["Hephaestus upgrades", HEPH_INFO.map((h) => src(h.up, `${h.then} (the base item gives ${h.now}) - 3 ${nice(h.base)} + a Hephaestus Anvil`))],
       ["Rare drops", [src("HILT_OF_REVELATIONS", "Minos Hunter"), src("DAEDALUS_STICK", "Minotaur (rare)"), src("BRAIN_FOOD", "Sphinx - +5 Tracking"), src("MANTI_CORE", "Manticore"), src("FATEFUL_STINGER", "Manticore"), src("SHIMMERING_WOOL", "King Minos")]],
       ["Extras", [src("DAEDALUS_NOTES", "Craft - Erudite reforge: +2 burrows per chain"), src("FOUR_EYED_FISH", "Griffin pet item: +13 MF, +55 def, +2k coins per burrow")]],
     ];
@@ -884,6 +912,7 @@ async function main() {
       `Enchanted Ancient Claw = 160 Ancient Claw - your ${fmt(evSacks.ANCIENT_CLAW)} raw claws make ${Math.floor((evSacks.ANCIENT_CLAW ?? 0) / 160)} more.`,
     ];
     if (fragNeed > 0) tips.push(`Mythos Fragments are shared: your remaining steps need ${fmt(fragNeed)}, you have ${fmt(evHave("MYTHOS_FRAGMENT"))}. The Deific Spade raises the drop rate, so it pays for itself.`);
+    tips.push("Hephaestus Anvil: neither the wiki nor the item text says whether a craft uses it up. Check the recipe in-game before planning several upgrades - if it is used up, spend it on the Hephaestus Relic first (the biggest effect).");
     const live = perkActive("Mythological Ritual");
     events.push({
       key: "diana", name: "Mythological Ritual (Diana)",
@@ -898,6 +927,7 @@ async function main() {
       kills,
       steps, tips,
       catalog, catalogOwned: catOwned, catalogTotal: catTotal,
+      hephaestus: { rows: hephRows, anvil: ownAnvil },
       wiki: "https://hypixelskyblock.minecraft.wiki/w/Mythological_Ritual",
     });
   }

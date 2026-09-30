@@ -495,6 +495,18 @@ function render() {
         <div class="glabel">Progression path</div>
         ${doneSteps.length ? `<details><summary class="step done">✔ ${doneSteps.length} completed step${doneSteps.length > 1 ? "s" : ""}</summary><div style="margin-left:14px">${doneSteps.map(stepHtml).join("")}</div></details>` : ""}
         ${openSteps.map(stepHtml).join("") || `<div class="step done">Every trackable step is done.</div>`}
+        ${ev.hephaestus ? `<details open><summary class="glabel" style="display:inline-block">Hephaestus upgrades - what to do with your event pet items</summary>
+          <div class="sub" style="margin:2px 0 6px">Combine 3 copies of a mob-dropped pet item with a Hephaestus Anvil to get a stronger version. ${ev.hephaestus.anvil ? `<span class="ok">✓ You own a Hephaestus Anvil.</span>` : `<span class="no">You don't have a Hephaestus Anvil yet</span> - see the anvil steps above.`} Copies held by your pets count; you'd take them off first.</div>
+          <table class="plain" style="font-size:13px">
+            <tr><th>Upgrade</th><th>Effect: now → upgraded</th><th>Your copies</th><th>Status</th></tr>
+            ${ev.hephaestus.rows.map(r => `<tr>
+              <td>${esc(r.name)}<div class="sub" style="margin:0">from ${esc(r.base)}</div></td>
+              <td>${esc(r.now)} → <b class="ok">${esc(r.then)}</b></td>
+              <td><b class="${r.copies >= 3 ? "ok" : "no"}">${r.copies}/3</b>${r.held.length ? `<div class="sub" style="margin:0">on: ${r.held.map(esc).join(", ")}</div>` : ""}</td>
+              <td style="color:${r.done ? "var(--green)" : r.copies >= 3 ? "var(--gold)" : "var(--dim)"}">${r.done ? "✔ " : ""}${esc(r.status)}</td>
+            </tr>`).join("")}
+          </table>
+        </details>` : ""}
         ${ev.catalog ? `<details open><summary class="glabel" style="display:inline-block">Event items - ${ev.catalogOwned}/${ev.catalogTotal} obtained (hover an item for how to get it)</summary>
           ${ev.catalog.map(g => `<div class="glabel2">${esc(g.group)} (${g.items.filter(i => i.owned).length}/${g.items.length})</div><div class="chips">${g.items.map(chip).join("")}</div>`).join("")}
         </details>` : ""}
