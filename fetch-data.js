@@ -67,6 +67,35 @@ function stripColors(s) {
   return (s || "").replace(/§./g, "");
 }
 
+// SkyBlock calendar: epoch = Early Spring 1, Year 1 (wiki: unix 1560275700);
+// 1 SkyBlock day = 20 real minutes, 31 days/month, 12 months/year
+const SB_EPOCH = 1560275700000;
+const SB_DAY = 20 * 60 * 1000;
+const SB_MONTH = 31 * SB_DAY;
+const SB_YEAR = 12 * SB_MONTH;
+const SB_MONTHS = ["Early Spring", "Spring", "Late Spring", "Early Summer", "Summer", "Late Summer", "Early Autumn", "Autumn", "Late Autumn", "Early Winter", "Winter", "Late Winter"];
+function sbDate(t = Date.now()) {
+  const inYear = (t - SB_EPOCH) % SB_YEAR;
+  return { year: Math.floor((t - SB_EPOCH) / SB_YEAR) + 1, month: Math.floor(inYear / SB_MONTH), day: Math.floor((inYear % SB_MONTH) / SB_DAY) + 1 };
+}
+// yearly window starting at (month 0-11, day 1-31) lasting `days` SkyBlock days
+function sbWindow(month, day, days, t = Date.now()) {
+  const inYear = (t - SB_EPOCH) % SB_YEAR;
+  const start = month * SB_MONTH + (day - 1) * SB_DAY;
+  const end = start + days * SB_DAY;
+  if (inYear >= start && inYear < end) return { active: true, ms: end - inYear };
+  let until = start - inYear;
+  if (until < 0) until += SB_YEAR;
+  return { active: false, ms: until };
+}
+function fmtDuration(ms) {
+  const m = Math.round(ms / 60000);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 48) return `${h}h ${m % 60}m`;
+  return `${Math.floor(h / 24)}d ${h % 24}h`;
+}
+
 const RARITIES = ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC", "DIVINE", "SPECIAL", "VERY SPECIAL"];
 function itemRarity(item) {
   if (!item || !Array.isArray(item.lore)) return null;
@@ -172,6 +201,8 @@ async function main() {
 
   // ---- member data
   const member = await fetchJson(`${API}/profile/${account.id}/${profile.profileId}`);
+  // current mayor/minister - public Hypixel resource endpoint, no API key
+  const election = await fetchJson("https://api.hypixel.net/v2/resources/skyblock/election", { optional: true });
 
   // ---- inventories we analyze: everything except icon/sack display bags,
   // so ownership checks see all real storage (incl. the Loadouts update's
@@ -423,7 +454,7 @@ async function main() {
         "Check the Gear section below; if you have no combat set, follow the armor ladder starting from Hardened Diamond/Ender armor.");
     } else if (best === 0 && unknown >= 2 && established) {
       rec(3, "Gear", "Worn armor not in this dashboard's ladder",
-        "Your equipped set isn't one this dashboard recognizes (likely newer content, e.g. Hunting-update gear) - so no armor-ladder advice this refresh.",
+        "Your equipped set isn't one this dashboard recognizes (likely event or newer content, e.g. Diana's Challenger/Mythos sets) - so no armor-ladder advice this refresh.",
         "No action needed if the set is intentional. Your wardrobe and stats suggest you know what you're doing here.");
     } else if (nextByRank[best]) {
       const [title, how] = nextByRank[best];
@@ -603,7 +634,8 @@ async function main() {
     [/^(DIVAN|ARMOR_OF_DIVAN|SORROW|GLOSSY_MINERAL|MINERAL|ARMOR_OF_YOG|YOG|GLACITE|HEAT|MINER_OUTFIT|TANK_MINER|GOBLIN|TITANIUM|MITHRIL|DWARVEN)/, "mining"],
     [/^(HELIANTHUS|FERMENTO|SQUASH|CROPIE|MELON|FARM|RANCHER|PUMPKIN|CACTUS|MUSHROOM|BIOHAZARD|PESTHUNTERS|PEST_VEST|ENCHANTED_JACK|BLOSSOM|LOTUS|LEAFLET)/, "farming"],
     [/^(SHARK_SCALE|THUNDERBOLT|THUNDER|MAGMA_LORD|DIVER|SPONGE|SALMON|ANGLER|BACKWATER|FINWAVE|TAURUS|FLAMING|MOOGMA|SLUG|SQUID|SNORKELING|CLOWNFISH|PRISMARINE|SNOW)/, "fishing"],
-    [/^(CHALLENGER|SILVER_HUNTER|FIG|CANOPY|MANGROVE|MOSS)/, "foraging"],
+    [/^(CHALLENGER|MYTHOS)_/, "combat"], // Diana (Mythological Ritual) gear
+    [/^(SILVER_HUNTER|FIG|CANOPY|MANGROVE|MOSS)/, "foraging"],
     [/^(ADAPTIVE|SHADOW_ASSASSIN|ZOMBIE|SKELETON|HEAVY|SUPER_HEAVY|END(?=$|_)|ENDER|\w*_DRAGON|REVENANT|TARANTULA|MASTIFF|NECRON|STORM|GOLDOR|MAXOR|WITHER|CRIMSON|TERROR|AURORA|FERVOR|HOLLOW|SPIRIT|FROZEN_BLAZE|HARDENED_DIAMOND|GOLEM|LAPIS|ROTTEN|SKELETOR|VANQUISHED|IMPLOSION|ARACHNE|RAMPART|ABYSSAL|BONZO|DAVID)/, "combat"],
   ];
   const activityOf = (family) => {
@@ -686,84 +718,120 @@ async function main() {
   }
 
   // =================================================================
-  // EVENTS (Diana, Jacob, Hoppity, Spooky, Winter)
+  // EVENTS - live status (mayor + SkyBlock calendar) and a step-by-step
+  // progression path per event. Facts verified against the wiki / NEU
+  // (2026-09-30); steps auto-check from the player's data where possible.
   // =================================================================
 
   const playerStats = member.stats?.playerStats || {};
   const events = [];
   const TIER_ORDER = ["COMMON", "UNCOMMON", "RARE", "EPIC", "LEGENDARY", "MYTHIC"];
+  const evSacks = member.sacks || {};
+  const evHave = (id) => (evSacks[id] ?? 0) + allItems.filter((i) => i.id === id && i.container !== "museum").length;
+  const evMats = (spec) => spec.map(([id, need]) => ({ name: nice(id), need, have: evHave(id), ok: evHave(id) >= need }));
+  const has = (id) => ownedIds.has(id);
+  const tierName = (t) => t[0] + t.slice(1).toLowerCase();
+  const fmt = (n) => Math.round(n ?? 0).toLocaleString("en-US");
+  // step: done = true/false (auto-detected) or null (repeat each event, can't be tracked)
+  const step = (text, done, matsSpec) => ({ text, done, mats: done === false && matsSpec ? evMats(matsSpec) : null });
+
+  // live mayor / minister perks
+  const mayor = election?.mayor || null;
+  const perkList = [...(mayor?.perks || []), ...(mayor?.minister?.perk ? [mayor.minister.perk] : [])];
+  const perkActive = (name) => perkList.some((p) => p.name === name);
+  const mayorInfo = mayor ? {
+    mayor: mayor.name,
+    perks: (mayor.perks || []).map((p) => ({ name: p.name, desc: stripColors(p.description) })),
+    minister: mayor.minister ? { name: mayor.minister.name, perk: mayor.minister.perk?.name, desc: stripColors(mayor.minister.perk?.description) } : null,
+  } : null;
+  const now = sbDate();
+  const sbToday = `${SB_MONTHS[now.month]} ${now.day}, Year ${now.year}`;
 
   // ---- Mythological Ritual (Diana) ----
   {
     const my = playerStats.mythos || {};
     const griffin = petByType["GRIFFIN"] || null;
-    const kills = [
-      ["Minos Hunter", my.killsMinosHunter], ["Siamese Lynx", my.killsSiameseLynx],
-      ["Gaia Construct", my.killsGaiaConstruct], ["Minotaur", my.killsMinotaur],
-      ["Minos Champion", my.killsMinosChampion], ["Minos Inquisitor", my.killsMinosInquisitor],
-    ].map(([k, v]) => [k, v ?? 0]);
-    const DIANA_ITEMS = { DAEDALUS_AXE: "Daedalus Axe", ANCESTRAL_SPADE: "Ancestral Spade", ANTIQUE_REMEDIES: "Antique Remedies", DWARF_TURTLE_SHELMET: "Dwarf Turtle Shelmet", CROCHET_TIGER_PLUSHIE: "Crochet Tiger Plushie", MINOS_RELIC: "Minos Relic", GRIFFIN_FEATHER: "Griffin Feather(s)", ANCIENT_CLAW: "Ancient Claw(s)", ENCHANTED_ANCIENT_CLAW: "Enchanted Ancient Claw(s)" };
-    const haveItems = Object.entries(DIANA_ITEMS).filter(([id]) => ownedIds.has(id)).map(([, label]) => label);
-    const todo = [];
     const gTier = griffin ? TIER_ORDER.indexOf(griffin.tier) : -1;
-    if (!griffin) {
-      todo.push({ pr: 1, text: "Get a Griffin pet - it's the heart of the whole event (burrow quality scales with its rarity)." });
-    } else if (gTier < TIER_ORDER.indexOf("LEGENDARY")) {
-      const unlocks = gTier < TIER_ORDER.indexOf("EPIC") ? "Epic unlocks Minos Champions; Legendary unlocks Minos Inquisitors (the Chimera book source)" : "Legendary unlocks Minos Inquisitors - the Chimera book source";
-      todo.push({ pr: 1, text: `Upgrade your ${griffin.tier[0] + griffin.tier.slice(1).toLowerCase()} Griffin - ${unlocks}. Griffin Feathers (and any upgrade stones you have banked) are the materials.` });
-    }
-    if ((my.killsMinosInquisitor ?? 0) === 0 && (my.burrowsDugNext?.total ?? 0) > 100) {
-      todo.push({ pr: 2, text: "You've never killed a Minos Inquisitor - they drop Chimera books and top-tier Diana loot, and only appear with a Legendary Griffin." });
-    }
-    if (!ownedIds.has("DAEDALUS_AXE") && (my.burrowsDugNext?.total ?? 0) > 0) {
-      todo.push({ pr: 2, text: "Work toward a Daedalus Axe - the event's dedicated weapon; materials come from higher-tier mythological creatures." });
-    }
-    const missingPetItems = ["DWARF_TURTLE_SHELMET", "CROCHET_TIGER_PLUSHIE", "MINOS_RELIC"].filter((id) => !ownedIds.has(id));
-    if (missingPetItems.length && (my.burrowsDugNext?.total ?? 0) > 0) {
-      todo.push({ pr: 3, text: `Diana-exclusive pet items you're missing: ${missingPetItems.map((id) => DIANA_ITEMS[id]).join(", ")} - all drop from event mobs/burrows.` });
-    }
+    const kills = Object.entries(my)
+      .filter(([k]) => k.startsWith("kills"))
+      .map(([k, v]) => [k.slice(5).replace(/([a-z])([A-Z])/g, "$1 $2") + " kills", fmt(v)]);
+    const challengerSlots = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "NECKLACE", "CLOAK", "BELT", "BRACELET"];
+    const challengerDone = challengerSlots.filter((s) => has("CHALLENGER_" + s) || has("MYTHOS_" + s)).length;
+    const mythosArmor = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter((s) => has("MYTHOS_" + s)).length;
+    const mythosEquipMissing = ["NECKLACE", "CLOAK", "BELT", "BRACELET"].filter((s) => !has("MYTHOS_" + s));
+    const steps = [
+      step("Buy a Griffin Pet (25k coins) and an Ancestral Spade (5k + 32 Gold Ingot) from Diana", !!griffin && (has("ANCESTRAL_SPADE") || has("ARCHAIC_SPADE") || has("DEIFIC_SPADE"))),
+      step("Craft the Sword of Revelations - Hilt of Revelations drops from Minos Hunters", has("SWORD_OF_REVELATIONS") || has("DAEDALUS_AXE"),
+        [["HILT_OF_REVELATIONS", 1], ["GRIFFIN_FEATHER", 12], ["ENCHANTED_ANCIENT_CLAW", 8], ["ENCHANTED_GOLD_BLOCK", 1]]),
+      step("Craft the Archaic Spade - 6-burrow chains, and Mythos Fragments start dropping (6.76%)", has("ARCHAIC_SPADE") || has("DEIFIC_SPADE"),
+        [["ANCESTRAL_SPADE", 1], ["HILT_OF_REVELATIONS", 1], ["ENCHANTED_ANCIENT_CLAW", 8], ["GRIFFIN_FEATHER", 32], ["ENCHANTED_GOLD_BLOCK", 2]]),
+      step(`Challenger armor + equipment (${challengerDone}/8) - claws, gold and feathers`, challengerDone === 8),
+      step("Griffin to Rare (Uncommon + Rare stones at Kat) - unlocks Harpy and Gaia Construct", gTier >= 2),
+      step("Griffin to Epic (stone + 250k at Kat, 1 day) - unlocks Minotaur (Daedalus Stick) and Minos Champion (Minos Relic)", gTier >= 3,
+        [["MYTHOS_FRAGMENT", 4], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_ANCIENT_CLAW", 4], ["ENCHANTED_GOLD_BLOCK", 12]]),
+      step(`Mythos armor (${mythosArmor}/4) - 4 Mythos Fragments per piece`, mythosArmor === 4),
+      step("Griffin to Legendary (stone + 500k at Kat, 3 days) - unlocks Sphinx and Minos Inquisitor (Chimera)", gTier >= 4,
+        [["MYTHOS_FRAGMENT", 16], ["BRAIDED_GRIFFIN_FEATHER", 1], ["ENCHANTED_ANCIENT_CLAW", 32], ["ENCHANTED_GOLD_BLOCK", 96]]),
+      step(`Mythos equipment (${4 - mythosEquipMissing.length}/4) - each piece upgrades the matching Challenger piece`, mythosEquipMissing.length === 0,
+        [["MYTHOS_FRAGMENT", 4 * mythosEquipMissing.length], ["ENCHANTED_ANCIENT_CLAW", 32 * mythosEquipMissing.length], ["GRIFFIN_FEATHER", 64 * mythosEquipMissing.length], ["ENCHANTED_GOLD_BLOCK", 16 * mythosEquipMissing.length]]),
+      step("Deific Spade - 8-burrow chains and a better Mythos Fragment rate (9.31%)", has("DEIFIC_SPADE"),
+        [["ARCHAIC_SPADE", 1], ["HILT_OF_REVELATIONS", 1], ["BRAIDED_GRIFFIN_FEATHER", 1], ["MYTHOS_FRAGMENT", 16], ["ENCHANTED_ANCIENT_CLAW", 128], ["ENCHANTED_GOLD_BLOCK", 128]]),
+      step("Daedalus Blade - needs 2 Daedalus Sticks (rare Minotaur drop, Epic+ Griffin)", has("DAEDALUS_AXE"),
+        [["DAEDALUS_STICK", 2], ["SWORD_OF_REVELATIONS", 1], ["ENCHANTED_GOLD_BLOCK", 48]]),
+      step("Griffin to Mythic (stone + 1M at Kat) - unlocks Manticore and King Minos", gTier >= 5,
+        [["MYTHOS_FRAGMENT", 48], ["BRAIDED_GRIFFIN_FEATHER", 2], ["ENCHANTED_ANCIENT_CLAW", 128], ["ENCHANTED_GOLD_BLOCK", 192]]),
+    ];
+    // Mythos Fragments are shared by several remaining steps - show the pool
+    const fragNeed = steps.filter((s) => s.done === false).reduce((a, s) => a + (s.mats?.find((m) => m.name === "Mythos Fragment")?.need || 0), 0);
+    const tips = [
+      "Every Griffin stone is crafted from a Base Griffin Upgrade Stone (16 Ench Gold + 8 Ench Cobblestone + 8 Griffin Feather).",
+      `Braided Griffin Feather = 160 Griffin Feather + 256 Soul String (you: ${fmt(evHave("GRIFFIN_FEATHER"))} feathers, ${fmt(evHave("SOUL_STRING"))} string).`,
+      `Enchanted Ancient Claw = 160 Ancient Claw - your ${fmt(evSacks.ANCIENT_CLAW)} raw claws make ${Math.floor((evSacks.ANCIENT_CLAW ?? 0) / 160)} more.`,
+    ];
+    if (fragNeed > 0) tips.push(`Mythos Fragments are shared: your remaining steps need ${fmt(fragNeed)}, you have ${fmt(evHave("MYTHOS_FRAGMENT"))}. The Deific Spade raises the drop rate, so it pays for itself.`);
+    const live = perkActive("Mythological Ritual");
     events.push({
-      name: "Mythological Ritual (Diana)",
-      active: "Runs while Diana is mayor - burrow hunting on the Hub island",
+      key: "diana", name: "Mythological Ritual (Diana)",
+      status: live ? { active: true, text: `ACTIVE NOW - ${mayor?.name === "Diana" ? "Diana is mayor" : "Mythological Ritual perk is live"}. Dig burrows in the Hub.` }
+                   : { active: false, text: "Only while Diana is mayor (or her Mythological Ritual perk is live)." },
       stats: [
-        ["Griffin pet", griffin ? `${griffin.tier[0] + griffin.tier.slice(1).toLowerCase()} lvl ${griffin.level}` : "none"],
-        ["Burrows dug", (my.burrowsDugNext?.total ?? 0).toLocaleString("en-US")],
-        ["Treasure burrows", (my.burrowsDugTreasure?.total ?? 0).toLocaleString("en-US")],
-        ...kills.map(([k, v]) => [k + " kills", v.toLocaleString("en-US")]),
+        ["Griffin", griffin ? `${tierName(griffin.tier)} lvl ${griffin.level}` : "none"],
+        ["Burrows dug", fmt(my.burrowsDugNext?.total)],
+        ["Chains completed", fmt(my.burrowsChainsComplete?.total)],
+        ...kills,
       ],
-      have: haveItems,
-      todo,
+      steps, tips,
+      wiki: "https://hypixelskyblock.minecraft.wiki/w/Mythological_Ritual",
     });
   }
 
   // ---- Jacob's Farming Contests ----
   {
     const j = member.jacob || {};
-    const med = j.medals || {}, earned = j.earnedMedals || {}, perks = j.perks || {};
-    const todo = [];
-    if (perks.personalBests === false && (earned.gold ?? 0) > 0) {
-      todo.push({ pr: 2, text: "Buy the Personal Bests perk from Anita (Farmhouse, or in your Garden) - permanent Crop Fortune that grows as you beat your own contest records." });
-    }
-    if ((perks.doubleDrops ?? 0) < 15) {
-      const tiersLeft = 15 - (perks.doubleDrops ?? 0);
-      todo.push({ pr: 2, text: `Extra Farming Fortune is ${perks.doubleDrops ?? 0}/15 tiers - buy the remaining tiers from Anita (Farmhouse, or in your Garden) with Gold Medals + Jacob's Tickets for +${tiersLeft * 4} more permanent Farming Fortune. (Older guides and the API call this perk "Double Drops".)` });
-    }
-    if ((med.bronze ?? 0) + (med.silver ?? 0) + (med.gold ?? 0) > 10) {
-      todo.push({ pr: 3, text: `You're sitting on ${med.bronze ?? 0} bronze / ${med.silver ?? 0} silver / ${med.gold ?? 0} gold unspent medals - browse Anita's shop.` });
-    }
+    const earned = j.earnedMedals || {}, perks = j.perks || {}, med = j.medals || {};
+    const dayIdx = Math.floor((Date.now() - SB_EPOCH) / SB_DAY);
+    // contests run every 3rd SkyBlock day, starting on Early Spring 2
+    const live = (dayIdx - 1) % 3 === 0;
+    const nextIn = (() => { let d = dayIdx + 1; while ((d - 1) % 3 !== 0) d++; return d * SB_DAY + SB_EPOCH - Date.now(); })();
+    const ff = perks.doubleDrops ?? 0;
     events.push({
-      name: "Jacob's Farming Contests",
-      active: "Every 3 SkyBlock days, year-round",
+      key: "jacob", name: "Jacob's Farming Contests",
+      status: live ? { active: true, text: "A contest is running now (20 real minutes)." } : { active: false, text: `Next contest in ${fmtDuration(nextIn)} - every hour, year-round.` },
       stats: [
-        ["Contests entered", (j.participations ?? 0).toLocaleString("en-US")],
-        ["Gold medals earned", (earned.gold ?? 0) + (earned.platinum ?? 0) + (earned.diamond ?? 0)],
+        ["Contests entered", fmt(j.participations)],
         ["Diamond medals", earned.diamond ?? 0],
         ["Unspent medals", `${med.bronze ?? 0}🥉 ${med.silver ?? 0}🥈 ${med.gold ?? 0}🥇`],
-        ["Extra Farming Fortune (Anita)", `+${(perks.doubleDrops ?? 0) * 4}/60`],
-        ["Farming level cap bought", `+${perks.levelCap ?? 0}`],
       ],
-      have: [],
-      todo,
+      steps: [
+        step("Reach Farming X and talk to Jacob once", (j.participations ?? 0) > 0),
+        step("Collect 100+ of a contest crop to place; higher brackets pay more medals", (earned.gold ?? 0) > 0),
+        step(`Anita: Extra Farming Fortune ${ff}/15 (+4 Farming Fortune per tier, gold medals + Jacob's Tickets)`, ff >= 15),
+        step("Anita: Personal Bests perk", perks.personalBests === true),
+        step(`Anita: Farming level cap +${perks.levelCap ?? 0}/10`, (perks.levelCap ?? 0) >= 10),
+        step(`Earn Diamond medals (${earned.diamond ?? 0} so far) - top brackets per crop`, (earned.diamond ?? 0) > 0),
+      ],
+      tips: ["Anita is in the Farmhouse and in your Garden."],
+      wiki: "https://hypixelskyblock.minecraft.wiki/w/Jacob%27s_Farming_Contest",
     });
   }
 
@@ -771,74 +839,131 @@ async function main() {
   if (member.chocolateFactory && (member.chocolateFactory.totalChocolate ?? 0) > 0) {
     const c = member.chocolateFactory;
     const u = c.uniqueRabbits || {};
-    const uniques = Object.values(u).reduce((a, b) => a + (b || 0), 0);
-    const todo = [];
-    if (!c.unlockedZorro) todo.push({ pr: 3, text: "Zorro is still locked - it requires progress on the rarest rabbit tiers." });
-    if ((u.divine ?? 0) === 0) todo.push({ pr: 3, text: "No Divine rabbits yet - keep hunting eggs each Hoppity's Hunt for the rarest tier." });
+    const w = sbWindow(0, 1, 93); // Early Spring 1 through Late Spring
     events.push({
-      name: "Hoppity's Hunt (Chocolate Factory)",
-      active: "Seasonal (SkyBlock spring) - factory produces year-round",
+      key: "hoppity", name: "Hoppity's Hunt (Chocolate Factory)",
+      status: w.active ? { active: true, text: `ACTIVE NOW - ends in ${fmtDuration(w.ms)}. Hunt eggs every spawn.` } : { active: false, text: `Starts in ${fmtDuration(w.ms)} (Early Spring 1). The factory produces year-round.` },
       stats: [
         ["Prestige", c.prestige ?? 0],
-        ["All-time chocolate", c.totalChocolate >= 1e9 ? (c.totalChocolate / 1e9).toFixed(1) + "B" : Math.round(c.totalChocolate).toLocaleString("en-US")],
-        ["Unique rabbits", uniques],
-        ["Mythic / Divine rabbits", `${u.mythic ?? 0} / ${u.divine ?? 0}`],
-        ["Zorro unlocked", c.unlockedZorro ? "yes" : "no"],
+        ["Unique rabbits", Object.values(u).reduce((a, b) => a + (b || 0), 0)],
+        ["Mythic / Divine", `${u.mythic ?? 0} / ${u.divine ?? 0}`],
       ],
-      have: [],
-      todo,
+      steps: [
+        step(`Prestige the Chocolate Factory (prestige ${c.prestige ?? 0}) - higher prestige widens Hoppity's rabbit stock`, (c.prestige ?? 0) >= 1),
+        step("During the hunt, claim every Chocolate Egg (announced in chat; an Egglocator points to them)", null),
+        step("Buy rabbits when Hoppity visits (250k-5m chocolate by rarity)", null),
+        step(`Collect Mythic rabbits (${u.mythic ?? 0})`, (u.mythic ?? 0) > 0),
+        step("Unlock Zorro", !!c.unlockedZorro),
+        step("Find a Divine rabbit", (u.divine ?? 0) > 0),
+      ],
+      tips: [],
+      wiki: "https://hypixelskyblock.minecraft.wiki/w/Hoppity%27s_Hunt",
     });
   }
 
   // ---- Spooky Festival ----
   {
-    const candyIdx = ["CANDY_TALISMAN", "CANDY_RING", "CANDY_ARTIFACT", "CANDY_RELIC"].reduce((b, id, i) => (ownedIds.has(id) ? i : b), -1);
-    const batIdx = ["BAT_TALISMAN", "BAT_RING", "BAT_ARTIFACT"].reduce((b, id, i) => (ownedIds.has(id) ? i : b), -1);
-    const spookSet = ["GREAT_SPOOK_HELMET", "GREAT_SPOOK_CHESTPLATE", "GREAT_SPOOK_LEGGINGS", "GREAT_SPOOK_BOOTS"].filter((id) => ownedIds.has(id)).length;
-    const have = [];
-    if (spookSet) have.push(`Great Spook armor (${spookSet}/4)`);
-    if (candyIdx >= 0) have.push(nice(["CANDY_TALISMAN", "CANDY_RING", "CANDY_ARTIFACT", "CANDY_RELIC"][candyIdx]));
-    if (batIdx >= 0) have.push(nice(["BAT_TALISMAN", "BAT_RING", "BAT_ARTIFACT"][batIdx]));
-    const todo = [];
-    if (candyIdx >= 0 && candyIdx < 3) todo.push({ pr: 3, text: "Upgrade your candy accessory with Purple Candy during the next Spooky Festival." });
-    if (batIdx >= 0 && batIdx < 2) todo.push({ pr: 3, text: "Upgrade your bat accessory - Spooky Festival bat drops." });
-    if (spookSet > 0 && spookSet < 4) todo.push({ pr: 3, text: `Complete the Great Spook set (${spookSet}/4) during the Great Spook (spooky season).` });
+    const w = sbWindow(7, 29, 3); // Autumn 29-31
+    const fish = sbWindow(7, 26, 9); // spooky fishing: Autumn 26, 9 days
+    const set4 = (p) => ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].every((s) => has(p + s));
+    const intim = has("INTIMIDATION_ARTIFACT") || has("INTIMIDATION_RELIC");
     events.push({
-      name: "Spooky Festival",
-      active: "Seasonal (SkyBlock autumn)",
-      stats: [["Bats spawned (lifetime)", playerStats.spooky?.bats_spawned?.total ?? 0]],
-      have,
-      todo,
-    });
-  }
-
-  // ---- Jerry's Workshop (Winter) ----
-  {
-    const jerryIdx = ["JERRY_TALISMAN_GREEN", "JERRY_TALISMAN_BLUE", "JERRY_TALISMAN_PURPLE", "JERRY_TALISMAN_GOLDEN"].reduce((b, id, i) => (ownedIds.has(id) ? i : b), -1);
-    const yeti = petByType["BABY_YETI"] || null;
-    const have = [];
-    if (jerryIdx >= 0) have.push(nice(["JERRY_TALISMAN_GREEN", "JERRY_TALISMAN_BLUE", "JERRY_TALISMAN_PURPLE", "JERRY_TALISMAN_GOLDEN"][jerryIdx]));
-    if (yeti) have.push(`Baby Yeti pet (${yeti.tier[0] + yeti.tier.slice(1).toLowerCase()} lvl ${yeti.level})`);
-    const todo = [];
-    if (jerryIdx >= 0 && jerryIdx < 3) todo.push({ pr: 3, text: "Upgrade your Jerry talisman during Jerry's Workshop (last SkyBlock month of the year)." });
-    if (!yeti) todo.push({ pr: 3, text: "Fish up a Baby Yeti pet in the Jerry pond - strong fishing pet, only available during winter." });
-    events.push({
-      name: "Jerry's Workshop (Winter)",
-      active: "Seasonal (SkyBlock winter)",
-      stats: [
-        ["Gifts given", (playerStats.gifts?.given ?? 0).toLocaleString("en-US")],
-        ["Gifts received", (playerStats.gifts?.received ?? 0).toLocaleString("en-US")],
+      key: "spooky", name: "Spooky Festival",
+      status: w.active ? { active: true, text: `ACTIVE NOW - ends in ${fmtDuration(w.ms)}. Every mob kill can drop candy.` }
+            : fish.active ? { active: true, text: `Spooky fishing is live (festival starts in ${fmtDuration(w.ms)}).` }
+            : { active: false, text: `Starts in ${fmtDuration(w.ms)} (Autumn 29-31; spooky fishing from Autumn 26).` },
+      stats: [["Bats spawned", playerStats.spooky?.bats_spawned?.total ?? 0], ["Purple Candy", fmt(evHave("PURPLE_CANDY"))], ["Green Candy", fmt(evHave("GREEN_CANDY"))]],
+      steps: [
+        step("Wear full Spooky or Bat Person armor - +20% Green Candy chance", set4("SPOOKY_") || set4("BAT_PERSON_")),
+        step("Kill mobs during the festival - 10% Green Candy base; Purple Candy is rarer", null),
+        step("Fear Mongerer: Intimidation Artifact (your ring + 100 Purple Candy)", intim, has("INTIMIDATION_RING") ? [["PURPLE_CANDY", 100], ["INTIMIDATION_RING", 1]] : null),
+        step("Fear Mongerer: Bat Artifact", has("BAT_ARTIFACT")),
+        step("Fear Mongerer: Candy chain up to the Candy Relic (Artifact + 1,024 Purple Candy)", has("CANDY_RELIC")),
+        step("Bat Person chain (Spooky Shards + Ectoplasm)", has("BAT_PERSON_ARTIFACT")),
       ],
-      have,
-      todo,
+      tips: ["The Fear Mongerer only sells during the festival - bank Purple Candy ahead of time."],
+      wiki: "https://hypixelskyblock.minecraft.wiki/w/Spooky_Festival",
     });
   }
 
-  // fold the strongest event to-dos into the main recommendation list (max MEDIUM - events are periodic)
+  // ---- Season of Jerry ----
+  {
+    const w = sbWindow(11, 1, 31); // workshop open all of Late Winter
+    const defend = sbWindow(11, 24, 1);
+    const yeti = petByType["BABY_YETI"] || null;
+    events.push({
+      key: "jerry", name: "Season of Jerry",
+      status: defend.active ? { active: true, text: "DEFEND JERRY'S WORKSHOP IS LIVE - snowballs for the Magma Cubes." }
+            : w.active ? { active: true, text: `Jerry's Workshop is open - the defense starts in ${fmtDuration(defend.ms)} (Late Winter 24).` }
+            : { active: false, text: `Workshop opens in ${fmtDuration(w.ms)} (Late Winter). Defense on Late Winter 24.` },
+      stats: [["Gifts given", fmt(playerStats.gifts?.given)], ["Gifts received", fmt(playerStats.gifts?.received)]],
+      steps: [
+        step("Open Jerry's Workshop during Late Winter (/savethejerrys, or Jerry on your island)", null),
+        step("Defend Jerry's Workshop on Late Winter 24 - 5 rounds; only snowballs hurt Magma Cubes; presents scale with damage", null),
+        step("Golden Jerry Talisman - needs 5 Purple Jerry Talismans", has("JERRY_TALISMAN_GOLDEN"), [["JERRY_TALISMAN_PURPLE", 5]]),
+        step(`Baby Yeti pet${yeti ? ` (yours: ${tierName(yeti.tier)} lvl ${yeti.level})` : ""}`, !!yeti),
+      ],
+      tips: [],
+      wiki: "https://hypixelskyblock.minecraft.wiki/w/Season_of_Jerry",
+    });
+  }
+
+  // ---- Fishing Festival (Marina) ----
+  {
+    const live = perkActive("Fishing Festival") && now.day <= 3;
+    const perk = perkActive("Fishing Festival");
+    const sharkPieces = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter((s) => has("SHARK_SCALE_" + s)).length;
+    events.push({
+      key: "fishingfest", name: "Fishing Festival (Marina)",
+      status: live ? { active: true, text: "ACTIVE NOW - sharks are biting (days 1-3 of the month)." }
+            : perk ? { active: false, text: `Marina's perk is on - next festival on day 1 of ${SB_MONTHS[(now.month + 1) % 12]}.` }
+            : { active: false, text: "Only while Marina is mayor (or her Fishing Festival perk is live)." },
+      stats: [["Enchanted Shark Fin", fmt(evHave("ENCHANTED_SHARK_FIN"))]],
+      steps: [
+        step("Fish any water on days 1-3 of each month for Sharks (fins + teeth)", null),
+        step("Rod of the Sea", has("ROD_OF_THE_SEA") || has("HELLFIRE_ROD"), [["ENCHANTED_SHARK_FIN", 4], ["GREAT_WHITE_SHARK_TOOTH", 4], ["LEGEND_ROD", 1]]),
+        step(`Shark Scale armor (${sharkPieces}/4)`, sharkPieces === 4),
+      ],
+      tips: [],
+      wiki: "https://hypixelskyblock.minecraft.wiki/w/Fishing_Festival",
+    });
+  }
+
+  // ---- Mining Fiesta (Cole) ----
+  {
+    const perk = perkActive("Mining Fiesta");
+    const coleSeated = mayor?.name === "Cole" || mayor?.minister?.name === "Cole";
+    const glossy = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter((s) => has("GLOSSY_MINERAL_" + s)).length;
+    events.push({
+      key: "fiesta", name: "Mining Fiesta (Cole)",
+      status: perk ? { active: true, text: "Cole's Mining Fiesta perk is live - fiestas are scheduled this term (7 days each)." }
+            : { active: false, text: coleSeated ? "Cole is seated but without the Mining Fiesta perk - no fiestas this term." : "Only while Cole's Mining Fiesta perk is live." },
+      stats: [["Glossy Gemstone", fmt(evHave("GLOSSY_GEMSTONE"))], ["Refined Mineral", fmt(evHave("REFINED_MINERAL"))]],
+      steps: [
+        step("Mine on public islands during a Fiesta for Refined Minerals and Glossy Gemstones", null),
+        step("Glossy Mineral Talisman (16 Glossy Gemstones)", has("GLOSSY_MINERAL_TALISMAN"), [["GLOSSY_GEMSTONE", 16], ["MINERAL_TALISMAN", 1]]),
+        step(`Glossy Mineral armor (${glossy}/4) - 16 Glossy Gemstones per piece`, glossy === 4),
+      ],
+      tips: [],
+      wiki: "https://hypixelskyblock.minecraft.wiki/w/Mining_Fiesta",
+    });
+  }
+
+  // mark "you are here" (first undone trackable step) and sort live events first
   for (const ev of events) {
-    for (const t of ev.todo) {
-      if (t.pr <= 2) rec(2, "Events", `${ev.name.split(" (")[0]}: ${t.text.split(" - ")[0]}`, t.text, "See the Events section for details.");
-    }
+    const idx = ev.steps.findIndex((s) => s.done === false);
+    if (idx >= 0) ev.steps[idx].current = true;
+    ev.stepsDone = ev.steps.filter((s) => s.done === true).length;
+    ev.stepsTrackable = ev.steps.filter((s) => s.done !== null).length;
+  }
+  events.sort((a, b) => (b.status.active ? 1 : 0) - (a.status.active ? 1 : 0));
+
+  // live events are time-limited: their next step goes to the top of the to-do list
+  for (const ev of events) {
+    const cur = ev.steps.find((s) => s.current);
+    if (!cur) continue;
+    if (ev.status.active) rec(1, "Events", `${ev.name.split(" (")[0]} is live: ${cur.text.split(" - ")[0]}`, ev.status.text, "The full path is in the Events section.");
+    else if (ev.key === "jacob") rec(2, "Events", `Jacob: ${cur.text.split(" - ")[0]}`, cur.text, "The full path is in the Events section.");
   }
 
   // =================================================================
@@ -1337,7 +1462,7 @@ async function main() {
       skill: "foraging", label: "Foraging & Hunting", wikiPage: "Foraging",
       tools: [],
       toolHint: "Axe choice now depends on tree Toughness and Sweep (Galatea rework) - no single BiS; your Figstone Axe handles Galatea trees, Treecapitator suits Park trees. Check the wiki + Heart of the Forest.",
-      sets: [{ id: "FIG", why: "Galatea foraging set" }, { id: "SILVER_HUNTER", why: "hunting set" }, { id: "CHALLENGER", why: "hunting combat set" }],
+      sets: [{ id: "FIG", why: "Galatea foraging set" }, { id: "SILVER_HUNTER", why: "hunting set" }],
       equipSlots: { Cloak: ["MANGROVE_VINE"], Necklace: ["MANGROVE_LOCKET"], Gloves: ["MANGROVE_GRIPPERS"] },
       pets: [
         { type: "MONKEY", why: "the foraging pet" },
@@ -1588,12 +1713,12 @@ async function main() {
     ], "Top of the titanium chain; your drill line is already done, so titanium has no better use.");
 
   if (usableIds.has("SWORD_OF_REVELATIONS"))
-    target("DAEDALUS_AXE", "Daedalus Axe (Diana weapon)", [
+    target("DAEDALUS_AXE", "Daedalus Blade (Diana weapon)", [
       gBase("SWORD_OF_REVELATIONS", "Sword of Revelations"),
-      gMat(2, countItems("DAEDALUS_STICK"), "Daedalus Stick (drops from Minos Champions/Inquisitors)"),
+      gMat(2, sackOf("DAEDALUS_STICK") + countItems("DAEDALUS_STICK"), "Daedalus Stick (rare Minotaur drop)"),
       gMat(48, sackOf("ENCHANTED_GOLD_BLOCK"), "Enchanted Gold Block"),
-      gInfo("Champions/Inquisitors need an Epic/Legendary Griffin to spawn"),
-    ], "The event weapon. Its real bottleneck is your Griffin rarity - upgrade the pet first and the sticks follow.");
+      gInfo("Minotaurs need an Epic or better Griffin to spawn"),
+    ], "The event weapon. Daedalus Sticks are a rare Minotaur drop - keep digging with an Epic+ Griffin.");
 
   target("JERRY_TALISMAN_GOLDEN", "Golden Jerry Talisman", [
     gBase("JERRY_TALISMAN_PURPLE", "Purple Jerry Talisman"),
@@ -1812,6 +1937,8 @@ async function main() {
     },
     accessoryCollection,
     events,
+    mayorInfo,
+    sbToday,
     slayerLoadouts: slayerLoadouts.map((L) => {
       const itemFor = (id) => (fullItemById[id] ? slim(fullItemById[id]) : { skyblockId: id, name: nice(id), lore: [] });
       return {
