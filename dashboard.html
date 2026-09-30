@@ -29,8 +29,8 @@
   .stat .k { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .6px; }
   .stat .v { font-size: 20px; font-weight: 700; margin-top: 2px; }
 
-  nav.toc { position: sticky; top: 0; z-index: 5; background: rgba(16,19,28,.94); backdrop-filter: blur(4px); display: flex; gap: 4px; flex-wrap: wrap; padding: 10px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
-  nav.toc a { color: var(--dim); text-decoration: none; padding: 5px 12px; border-radius: 8px; font-size: 14px; }
+  nav.toc { position: sticky; top: 0; z-index: 5; background: rgba(16,19,28,.94); backdrop-filter: blur(4px); display: flex; gap: 2px; flex-wrap: wrap; padding: 8px 0; border-bottom: 1px solid var(--border); margin-bottom: 10px; }
+  nav.toc a { color: var(--dim); text-decoration: none; padding: 4px 8px; border-radius: 8px; font-size: 13px; white-space: nowrap; }
   nav.toc a:hover { color: var(--text); background: var(--panel2); }
 
   section { margin-top: 30px; }
@@ -82,6 +82,47 @@
   .filterbar { display: flex; gap: 6px; margin-bottom: 12px; flex-wrap: wrap; }
   .filterbar button { background: var(--panel); color: var(--dim); border: 1px solid var(--border); border-radius: 8px; padding: 5px 14px; cursor: pointer; font-size: 13px; }
   .filterbar button.on { color: var(--text); background: var(--panel2); border-color: #46538a; }
+
+  /* collapsibles: one consistent arrow everywhere */
+  details > summary { cursor: pointer; list-style: none; }
+  details > summary::-webkit-details-marker { display: none; }
+  details > summary::before { content: "▸"; display: inline-block; width: 1.1em; color: var(--dim); transition: transform .15s; }
+  details[open] > summary::before { transform: rotate(90deg); }
+
+  /* live-event strip under the header */
+  .livebar { background: #14301c; border: 1px solid #2d6b3f; color: #8ee6a8; border-radius: 10px; padding: 8px 14px; margin: 10px 0; font-size: 14px; }
+  .livebar a { color: var(--green); }
+
+  /* events */
+  .ev { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 12px; }
+  .ev.live { border-left: 5px solid var(--green); }
+  .ev-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; padding: 12px 16px; }
+  .ev-title { font-weight: 700; font-size: 16px; color: var(--aqua); }
+  .ev-head .wiki { color: var(--dim); font-size: 11px; text-decoration: none; }
+  .ev-head .count { margin-left: auto; color: var(--dim); font-size: 12px; }
+  .ev-head .next { color: var(--gold); font-size: 12.5px; }
+  .ev-body { padding: 0 16px 14px; }
+  .ev-status { font-size: 13px; color: var(--dim); }
+  .ev.live .ev-status { color: var(--green); }
+  .kvs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .kv { background: var(--panel2); border: 1px solid var(--border); border-radius: 8px; padding: 3px 10px; font-size: 13px; }
+  .kv span { color: var(--dim); }
+  .glabel { color: var(--dim); font-size: 11px; text-transform: uppercase; letter-spacing: .6px; margin: 14px 0 4px; }
+  .glabel2 { color: var(--dim); font-size: 12px; margin: 8px 0 4px; }
+  .step { font-size: 13.5px; margin-top: 3px; }
+  .step.done { color: var(--green); }
+  .step.cur { color: var(--gold); font-weight: 700; }
+  .step.later { color: var(--dim); }
+  .here { font-size: 11px; background: #3a2f14; color: var(--gold); border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+  .need { font-size: 12px; color: var(--dim); margin: 1px 0 3px 22px; }
+  .need details { display: inline; }
+  .ok { color: var(--green); } .no { color: var(--red); }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip { position: relative; padding: 3px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--panel2); font-size: 12.5px; cursor: default; }
+  .chip.own { color: var(--green); border-color: #2d6b3f; background: #14301c; }
+  .chip.miss { color: #ffc4c4; border-color: #5a3030; background: #2a1a1f; }
+  .chip .ct { display: none; position: absolute; z-index: 20; left: 0; top: calc(100% + 4px); background: #151a28; border: 1px solid var(--border); border-radius: 8px; padding: 8px 12px; min-width: 240px; max-width: 380px; box-shadow: 0 8px 30px rgba(0,0,0,.6); font-size: 12px; color: var(--text); }
+  .chip:hover .ct { display: block; }
 
   .errbox { background: var(--panel); border: 1px solid #6b3535; border-radius: 12px; padding: 30px; margin-top: 40px; text-align: center; }
   .errbox h2 { color: var(--red); border: none; }
@@ -163,6 +204,12 @@ function render() {
   }
 
   for (const w of D.warnings || []) html += `<div class="warn">⚠ ${esc(w)}</div>`;
+
+  // live events are time-limited - surface them right under the header
+  for (const ev of (D.events || []).filter(e => e.status && e.status.active)) {
+    const cur = ev.steps.find(s => s.current);
+    html += `<div class="livebar">● <b>Live now: ${esc(ev.name)}</b>${cur ? ` - next: ${esc(cur.text.split(" - ")[0])}` : ""} · <a href="#ev-${esc(ev.key)}">open</a></div>`;
+  }
   if (D.api && D.api.inventories === false)
     html += `<div class="warn">⚠ Inventory API is disabled on Hypixel - gear &amp; accessory sections are empty. Enable it: SkyBlock Menu → Settings → Personal → API Settings.</div>`;
 
@@ -192,7 +239,8 @@ function render() {
       ${cats.map(c => `<button data-c="${esc(c)}">${esc(c)}</button>`).join("")}
     </div>
     <div id="reclist">
-    ${recs.map(r => `
+    ${(() => {
+      const card = (r) => `
       <div class="rec p${r.priority}" data-c="${esc(r.category)}">
         <div class="rhead">
           <span class="prio">${["", "HIGH", "MEDIUM", "LOW"][r.priority]}</span>
@@ -201,7 +249,11 @@ function render() {
         </div>
         <div class="why">${esc(r.why)}</div>
         <div class="how"><b>How:</b> ${esc(r.how)}</div>
-      </div>`).join("")}
+      </div>`;
+      const main = recs.filter(r => r.priority < 3), low = recs.filter(r => r.priority >= 3);
+      return main.map(card).join("")
+        + (low.length ? `<details style="margin-top:4px"><summary style="color:var(--dim);font-size:14px;padding:6px 0">${low.length} nice-to-have item${low.length > 1 ? "s" : ""} (low priority)</summary><div style="margin-top:8px">${low.map(card).join("")}</div></details>` : "");
+    })()}
     ${recs.length === 0 ? `<p class="hint">Nothing to recommend - impressive profile!</p>` : ""}
     </div></section>`;
 
@@ -388,38 +440,76 @@ function render() {
   // ---- Events
   if (D.events && D.events.length) {
     const M = D.mayorInfo;
+    const num = (n) => Number(n).toLocaleString("en-US");
+    const matsInline = (mats) => mats.map(m =>
+      `<span class="${m.ok ? "ok" : "no"}">${m.ok ? "✓" : "✗"} ${num(m.need)}x ${esc(m.name)}</span> (you: ${num(m.have)})`).join(" · ");
+    const piecesHtml = (pieces) => {
+      const miss = pieces.filter(p => !p.owned && p.mats);
+      // materials that are the same for every missing piece (the consumed base piece differs per piece)
+      const key = (m) => m.name + "|" + m.need;
+      const shared = miss.length > 1 ? miss[0].mats.filter(m => miss.every(p => p.mats.some(x => key(x) === key(m)))) : [];
+      const condense = miss.length > 1 && miss.every(p => p.mats.length - shared.length <= 1);
+      if (!condense) {
+        return pieces.map(p => p.owned
+          ? `<div class="need ok">✔ ${esc(p.name)}</div>`
+          : `<div class="need"><span class="no">✗ ${esc(p.name)}</span>${p.mats ? ` - ${matsInline(p.mats)}` : ""}</div>`).join("");
+      }
+      const bases = miss.map(p => p.mats.find(m => !shared.some(s => key(s) === key(m)))).filter(Boolean);
+      const basesMissing = bases.filter(b => !b.ok).map(b => b.name);
+      const totals = shared.map(m => ({ ...m, need: m.need * miss.length, ok: m.have >= m.need * miss.length }));
+      const owned = pieces.filter(p => p.owned).map(p => p.name);
+      return `<div class="need">Still to craft: <span class="no">${miss.map(p => esc(p.name)).join(", ")}</span>${owned.length ? ` · done: <span class="ok">${owned.map(esc).join(", ")}</span>` : ""}</div>
+        <div class="need">Each piece: ${shared.map(m => `${num(m.need)}x ${esc(m.name)}`).join(" · ")}${bases.length ? ` + its base piece (${basesMissing.length ? `<span class="no">missing: ${basesMissing.map(esc).join(", ")}</span>` : `<span class="ok">✓ you have all ${bases.length}</span>`})` : ""}</div>
+        <div class="need">All ${miss.length} together: ${matsInline(totals)}</div>`;
+    };
+    // current step shows its materials open; later steps tuck them behind a dropdown
+    const stepHtml = (s) => {
+      const cls = s.done === true ? "done" : s.current ? "cur" : s.done === null ? "rep" : "later";
+      const icon = s.done === true ? "✔" : s.current ? "▶" : s.done === null ? "↻" : "○";
+      let out = `<div class="step ${cls}">${icon} ${esc(s.text)}${s.current ? `<span class="here">YOU ARE HERE</span>` : ""}</div>`;
+      if (s.done !== false) return out;
+      const missing = s.pieces ? s.pieces.filter(p => !p.owned).length : 0;
+      const canNow = s.canNow ? `<div class="need" style="color:${s.canNow.n ? "var(--green)" : "var(--red)"}">You can craft <b>${s.canNow.n} of ${missing}</b> right now${s.canNow.limit ? ` - ${esc(s.canNow.limit)} runs out next` : ""} (pieces share one material pool)</div>` : "";
+      const detail = s.pieces ? canNow + piecesHtml(s.pieces) : (s.mats && s.mats.length ? `<div class="need">needs: ${matsInline(s.mats)}</div>` : "");
+      if (!detail) return out;
+      return out + (s.current ? detail : `<details class="need"><summary>materials</summary>${detail}</details>`);
+    };
+    const chip = (it) => `<span class="chip ${it.owned ? "own" : "miss"}">${it.owned ? "✓" : "✗"} ${esc(it.name)}<span class="ct"><b>${esc(it.name)}</b> - ${it.owned ? "<span class=ok>obtained</span>" : "not obtained yet"}<br>${esc(it.how)}${it.mats ? `<br><br>${matsInline(it.mats)}` : ""}</span></span>`;
+
     html += `<section id="events"><h2>Events</h2>
-    <div class="hint">Live status from the current mayor and the SkyBlock calendar${D.sbToday ? ` (today: <b>${esc(D.sbToday)}</b>)` : ""}, plus a step-by-step progression path for each event. ✔ done · ▶ you are here · ○ later · ↻ repeat every event.</div>
+    <div class="hint">Live status from the current mayor and the SkyBlock calendar${D.sbToday ? ` (today: <b>${esc(D.sbToday)}</b>)` : ""}. ✔ done · ▶ you are here · ○ later · ↻ repeat every event.</div>
     ${M ? `<div class="card" style="margin-bottom:14px;padding:10px 16px;font-size:13.5px">
       🏛 <b>Mayor: ${esc(M.mayor)}</b> - ${M.perks.map(p => `<span title="${esc(p.desc)}" style="text-decoration:underline dotted;text-underline-offset:2px">${esc(p.name)}</span>`).join(" · ")}
       ${M.minister ? `<br>🎗 <b>Minister: ${esc(M.minister.name)}</b> - <span title="${esc(M.minister.desc)}" style="text-decoration:underline dotted;text-underline-offset:2px">${esc(M.minister.perk)}</span>` : ""}
-      <div class="sub" style="margin-top:2px">Hover a perk for its description.</div>
+      <span class="sub" style="margin-left:6px">(hover a perk for details)</span>
     </div>` : `<div class="hint">Current mayor unavailable this refresh (Hypixel election API unreachable).</div>`}`;
-    const matLine = (mats) => mats && mats.length ? `<div style="font-size:12px;margin:1px 0 3px 22px;color:var(--dim)">needs: ${mats.map(m =>
-      `<span style="color:${m.ok ? "var(--green)" : "var(--red)"}">${m.ok ? "✓" : "✗"} ${m.need.toLocaleString("en-US")}x ${esc(m.name)} <span style="color:var(--dim)">(you: ${m.have.toLocaleString("en-US")})</span></span>`).join(" · ")}</div>` : "";
+
     for (const ev of D.events) {
       const live = ev.status && ev.status.active;
-      html += `<div class="card" style="margin-bottom:14px;padding:14px 18px;${live ? "border-left:5px solid var(--green)" : ""}">
-        <div style="display:flex;justify-content:space-between;align-items:baseline;flex-wrap:wrap;gap:6px">
-          <span style="font-weight:700;font-size:16px;color:var(--aqua)">${esc(ev.name)} ${ev.wiki ? `<a href="${esc(ev.wiki)}" target="_blank" rel="noopener" style="color:var(--dim);font-size:11px;font-weight:400;text-decoration:none">wiki ↗</a>` : ""}</span>
-          <span style="font-size:12px;color:var(--dim)">${ev.stepsDone}/${ev.stepsTrackable} steps done</span>
-        </div>
-        <div style="margin-top:4px;font-size:13px;color:${live ? "var(--green)" : "var(--dim)"}">${live ? "● " : ""}${esc(ev.status ? ev.status.text : "")}</div>
-        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:10px">
-          ${ev.stats.map(([k, v]) => `<span style="background:var(--panel2);border:1px solid var(--border);border-radius:8px;padding:3px 10px;font-size:13px"><span style="color:var(--dim)">${esc(k)}:</span> <b>${esc(String(v))}</b></span>`).join("")}
-        </div>
-        <div style="margin-top:10px">
-          <div style="color:var(--dim);font-size:11px;text-transform:uppercase;letter-spacing:.6px;margin-bottom:4px">Progression path</div>
-          ${ev.steps.map(s => {
-            const [icon, col, weight] = s.done === true ? ["✔", "var(--green)", 400]
-              : s.current ? ["▶", "var(--gold)", 700]
-              : s.done === null ? ["↻", "var(--text)", 400]
-              : ["○", "var(--dim)", 400];
-            return `<div style="font-size:13.5px;color:${col};font-weight:${weight};margin-top:2px">${icon} ${esc(s.text)}${s.current ? ` <span style="font-size:11px;background:#3a2f14;color:var(--gold);border-radius:6px;padding:1px 6px;margin-left:4px">YOU ARE HERE</span>` : ""}</div>${s.done === false ? matLine(s.mats) : ""}`;
-          }).join("")}
-        </div>
-        ${(ev.tips || []).length ? `<div class="sub" style="margin-top:8px">${ev.tips.map(t => `<div>💡 ${esc(t)}</div>`).join("")}</div>` : ""}
+      const cur = ev.steps.find(s => s.current);
+      const doneSteps = ev.steps.filter(s => s.done === true);
+      const openSteps = ev.steps.filter(s => s.done !== true);
+      const body = `<div class="ev-body">
+        <div class="ev-status">${live ? "● " : ""}${esc(ev.status ? ev.status.text : "")}</div>
+        <div class="kvs">${ev.stats.map(([k, v]) => `<span class="kv"><span>${esc(k)}:</span> <b>${esc(String(v))}</b></span>`).join("")}</div>
+        <div class="glabel">Progression path</div>
+        ${doneSteps.length ? `<details><summary class="step done">✔ ${doneSteps.length} completed step${doneSteps.length > 1 ? "s" : ""}</summary><div style="margin-left:14px">${doneSteps.map(stepHtml).join("")}</div></details>` : ""}
+        ${openSteps.map(stepHtml).join("") || `<div class="step done">Every trackable step is done.</div>`}
+        ${ev.catalog ? `<details open><summary class="glabel" style="display:inline-block">Event items - ${ev.catalogOwned}/${ev.catalogTotal} obtained (hover an item for how to get it)</summary>
+          ${ev.catalog.map(g => `<div class="glabel2">${esc(g.group)} (${g.items.filter(i => i.owned).length}/${g.items.length})</div><div class="chips">${g.items.map(chip).join("")}</div>`).join("")}
+        </details>` : ""}
+        ${(ev.kills || []).length ? `<details><summary class="glabel" style="display:inline-block">Mob kills</summary><div class="kvs">${ev.kills.map(([k, v]) => `<span class="kv"><span>${esc(k)}:</span> <b>${esc(String(v))}</b></span>`).join("")}</div></details>` : ""}
+        ${(ev.tips || []).length ? `<details><summary class="glabel" style="display:inline-block">Tips (${ev.tips.length})</summary><div class="sub">${ev.tips.map(t => `<div>💡 ${esc(t)}</div>`).join("")}</div></details>` : ""}
       </div>`;
+      const head = (tag) => `<${tag} class="ev-head">
+          <span class="ev-title">${live ? "● " : ""}${esc(ev.name)}</span>
+          ${ev.wiki ? `<a class="wiki" href="${esc(ev.wiki)}" target="_blank" rel="noopener">wiki ↗</a>` : ""}
+          ${!live && cur ? `<span class="next">▶ ${esc(cur.text.split(" - ")[0])}</span>` : ""}
+          <span class="count">${ev.stepsDone}/${ev.stepsTrackable} steps</span>
+        </${tag}>`;
+      html += live
+        ? `<div class="ev live" id="ev-${esc(ev.key)}">${head("div")}${body}</div>`
+        : `<details class="ev" id="ev-${esc(ev.key)}">${head("summary")}${body}</details>`;
     }
     html += `</section>`;
   }
@@ -557,6 +647,8 @@ function render() {
     document.querySelectorAll("#reclist .rec").forEach(r => {
       r.style.display = (c === "*" || r.dataset.c === c) ? "" : "none";
     });
+    const lowBox = document.querySelector("#reclist details");
+    if (lowBox) lowBox.open = c !== "*";
   });
 }
 try { render(); } catch (e) {

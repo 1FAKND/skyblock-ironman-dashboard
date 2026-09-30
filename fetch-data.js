@@ -549,7 +549,14 @@ async function main() {
   }
   const ownedIds = new Set(allItems.map((i) => i.id));
   const bagIds = accessoryItems.map((i) => i.skyblockId);
-  const nice = (id) => id.toLowerCase().split("_").map((w) => w[0].toUpperCase() + w.slice(1)).join(" ");
+  // item-id -> display name; small words stay lowercase like the in-game names
+  // ("Aspect of the End"), plus overrides where the in-game name differs from the id
+  const NAME_OVERRIDES = {
+    DAEDALUS_AXE: "Daedalus Blade", STARRED_DAEDALUS_AXE: "Fragged Daedalus Blade", MANTI_CORE: "Manti-core",
+    FOUR_EYED_FISH: "Four-Eyed Fish", WASHED_UP_SOUVENIR: "Washed-up Souvenir", DAEDALUS_NOTES: "Daedalus' Notes",
+  };
+  const nice = (id) => NAME_OVERRIDES[id] || id.toLowerCase().split("_").filter(Boolean)
+    .map((w, i) => (i > 0 && /^(of|the|and|to|in)$/.test(w) ? w : w[0].toUpperCase() + w.slice(1))).join(" ");
 
   // ---- accessory upgrade chains (lowest → highest tier) ----
   const ACCESSORY_CHAINS = [
@@ -729,11 +736,14 @@ async function main() {
   const evSacks = member.sacks || {};
   const evHave = (id) => (evSacks[id] ?? 0) + allItems.filter((i) => i.id === id && i.container !== "museum").length;
   const evMats = (spec) => spec.map(([id, need]) => ({ name: nice(id), need, have: evHave(id), ok: evHave(id) >= need }));
-  const has = (id) => ownedIds.has(id);
+  // items held by pets (e.g. a Minos Relic on the Griffin) live on the pet, not in storage
+  const petHeld = new Set(pets.map((p) => p.heldItem).filter(Boolean));
+  const has = (id) => ownedIds.has(id) || petHeld.has(id);
   const tierName = (t) => t[0] + t.slice(1).toLowerCase();
   const fmt = (n) => Math.round(n ?? 0).toLocaleString("en-US");
-  // step: done = true/false (auto-detected) or null (repeat each event, can't be tracked)
-  const step = (text, done, matsSpec) => ({ text, done, mats: done === false && matsSpec ? evMats(matsSpec) : null });
+  // step: done = true/false (auto-detected) or null (repeat each event, can't be tracked);
+  // pieces = optional per-piece breakdown [{ name, owned, mats }]
+  const step = (text, done, matsSpec, pieces) => ({ text, done, mats: done === false && matsSpec ? evMats(matsSpec) : null, pieces: done === false && pieces ? pieces : null });
 
   // live mayor / minister perks
   const mayor = election?.mayor || null;
@@ -755,25 +765,87 @@ async function main() {
     const kills = Object.entries(my)
       .filter(([k]) => k.startsWith("kills"))
       .map(([k, v]) => [k.slice(5).replace(/([a-z])([A-Z])/g, "$1 $2") + " kills", fmt(v)]);
-    const challengerSlots = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "NECKLACE", "CLOAK", "BELT", "BRACELET"];
-    const challengerDone = challengerSlots.filter((s) => has("CHALLENGER_" + s) || has("MYTHOS_" + s)).length;
-    const mythosArmor = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"].filter((s) => has("MYTHOS_" + s)).length;
-    const mythosEquipMissing = ["NECKLACE", "CLOAK", "BELT", "BRACELET"].filter((s) => !has("MYTHOS_" + s));
+    // Diana item recipes (NEU repo, checked 2026-09-30)
+    const DR = {
+      CHALLENGER_HELMET: [["ANCIENT_CLAW", 64], ["ENCHANTED_GOLD", 32], ["GRIFFIN_FEATHER", 4]],
+      CHALLENGER_CHESTPLATE: [["ANCIENT_CLAW", 64], ["ENCHANTED_GOLD", 48], ["GRIFFIN_FEATHER", 4]],
+      CHALLENGER_LEGGINGS: [["ANCIENT_CLAW", 128], ["ENCHANTED_GOLD", 16], ["GRIFFIN_FEATHER", 4]],
+      CHALLENGER_BOOTS: [["ENCHANTED_GOLD", 64], ["GRIFFIN_FEATHER", 4]],
+      CHALLENGER_NECKLACE: [["ANCIENT_CLAW", 64], ["ENCHANTED_GOLD", 32], ["GRIFFIN_FEATHER", 4]],
+      CHALLENGER_CLOAK: [["ANCIENT_CLAW", 64], ["ENCHANTED_GOLD", 32], ["GRIFFIN_FEATHER", 4]],
+      CHALLENGER_BELT: [["ANCIENT_CLAW", 64], ["ENCHANTED_GOLD", 32], ["GRIFFIN_FEATHER", 4]],
+      CHALLENGER_BRACELET: [["ANCIENT_CLAW", 64], ["ENCHANTED_GOLD", 32], ["GRIFFIN_FEATHER", 4]],
+      MYTHOS_HELMET: [["CHALLENGER_HELMET", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 64]],
+      MYTHOS_CHESTPLATE: [["CHALLENGER_CHESTPLATE", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_GOLD_BLOCK", 32]],
+      MYTHOS_LEGGINGS: [["CHALLENGER_LEGGINGS", 1], ["MYTHOS_FRAGMENT", 4], ["GRIFFIN_FEATHER", 64]],
+      MYTHOS_BOOTS: [["CHALLENGER_BOOTS", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 32]],
+      MYTHOS_NECKLACE: [["CHALLENGER_NECKLACE", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 32], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_GOLD_BLOCK", 16]],
+      MYTHOS_CLOAK: [["CHALLENGER_CLOAK", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 32], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_GOLD_BLOCK", 16]],
+      MYTHOS_BELT: [["CHALLENGER_BELT", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 32], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_GOLD_BLOCK", 16]],
+      MYTHOS_BRACELET: [["CHALLENGER_BRACELET", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 32], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_GOLD_BLOCK", 16]],
+      SWORD_OF_REVELATIONS: [["HILT_OF_REVELATIONS", 1], ["GRIFFIN_FEATHER", 12], ["ENCHANTED_ANCIENT_CLAW", 8], ["ENCHANTED_GOLD_BLOCK", 1]],
+      DAEDALUS_AXE: [["SWORD_OF_REVELATIONS", 1], ["DAEDALUS_STICK", 2], ["ENCHANTED_GOLD_BLOCK", 48]],
+      STARRED_DAEDALUS_AXE: [["DAEDALUS_AXE", 1], ["GOLDEN_FRAGMENT", 8]],
+      ARCHAIC_SPADE: [["ANCESTRAL_SPADE", 1], ["HILT_OF_REVELATIONS", 1], ["ENCHANTED_ANCIENT_CLAW", 8], ["GRIFFIN_FEATHER", 32], ["ENCHANTED_GOLD_BLOCK", 2]],
+      DEIFIC_SPADE: [["ARCHAIC_SPADE", 1], ["HILT_OF_REVELATIONS", 1], ["BRAIDED_GRIFFIN_FEATHER", 1], ["MYTHOS_FRAGMENT", 16], ["ENCHANTED_ANCIENT_CLAW", 128], ["ENCHANTED_GOLD_BLOCK", 128]],
+      CROWN_OF_AVARICE: [["CROWN_OF_GREED", 1], ["AVARICIOUS_CHALICE", 2], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_GOLD_BLOCK", 24]],
+      MANTICORE_CLAW: [["MANTI_CORE", 1], ["ENCHANTED_ANCIENT_CLAW", 320], ["ENCHANTED_GOLD_BLOCK", 64]],
+      GOLDEN_FLEECE: [["SHIMMERING_WOOL", 1], ["BRAIDED_GRIFFIN_FEATHER", 1], ["ENCHANTED_GOLD_BLOCK", 256], ["ENCHANTED_WOOL", 128]],
+      DAEDALUS_NOTES: [["DAEDALUS_STICK", 1], ["MYTHOS_FRAGMENT", 4], ["ENCHANTED_ANCIENT_CLAW", 32], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_PAPER", 128]],
+      BRAIDED_GRIFFIN_FEATHER: [["GRIFFIN_FEATHER", 160], ["SOUL_STRING", 256]],
+    };
+    const HEPH = { ANTIQUE_REMEDIES: "HEPHAESTUS_REMEDIES", CRETAN_URN: "HEPHAESTUS_URN", CROCHET_TIGER_PLUSHIE: "HEPHAESTUS_PLUSHIE", DWARF_TURTLE_SHELMET: "HEPHAESTUS_SHELMET", MINOS_RELIC: "HEPHAESTUS_RELIC", WASHED_UP_SOUVENIR: "HEPHAESTUS_SOUVENIR" };
+    for (const [base, up] of Object.entries(HEPH)) DR[up] = [[base, 3], ["HEPHAESTUS_ANVIL", 1]];
+    // owning an upgrade counts as having obtained what it consumed
+    const UPGRADED_BY = { ANCESTRAL_SPADE: ["ARCHAIC_SPADE", "DEIFIC_SPADE"], ARCHAIC_SPADE: ["DEIFIC_SPADE"], SWORD_OF_REVELATIONS: ["DAEDALUS_AXE", "STARRED_DAEDALUS_AXE"], DAEDALUS_AXE: ["STARRED_DAEDALUS_AXE"], CROWN_OF_GREED: ["CROWN_OF_AVARICE"] };
+    for (const s of ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS", "NECKLACE", "CLOAK", "BELT", "BRACELET"]) UPGRADED_BY["CHALLENGER_" + s] = ["MYTHOS_" + s];
+    for (const [base, up] of Object.entries(HEPH)) UPGRADED_BY[base] = [up];
+    // rare drops count as obtained once they've been used in a craft
+    Object.assign(UPGRADED_BY, {
+      HILT_OF_REVELATIONS: ["SWORD_OF_REVELATIONS", "ARCHAIC_SPADE", "DEIFIC_SPADE"],
+      DAEDALUS_STICK: ["DAEDALUS_AXE", "DAEDALUS_NOTES"], MANTI_CORE: ["MANTICORE_CLAW"], SHIMMERING_WOOL: ["GOLDEN_FLEECE"],
+    });
+    const got = (id) => has(id) || (UPGRADED_BY[id] || []).some(got);
+    const piecesFor = (ids) => ids.map((id) => ({ name: nice(id), owned: got(id), mats: !got(id) && DR[id] ? evMats(DR[id]) : null }));
+    // pieces share one material pool - count how many can be crafted in order
+    // before something runs out, and name the material that runs out
+    const affordable = (ids) => {
+      const pool = {};
+      let n = 0, limit = null;
+      for (const id of ids.filter((x) => !got(x))) {
+        const spec = DR[id] || [];
+        for (const [m] of spec) if (!(m in pool)) pool[m] = evHave(m);
+        const short = spec.find(([m, need]) => pool[m] < need);
+        if (short) { limit = nice(short[0]); break; }
+        for (const [m, need] of spec) pool[m] -= need;
+        n++;
+      }
+      return { n, limit };
+    };
+
+    const armorSlots = ["HELMET", "CHESTPLATE", "LEGGINGS", "BOOTS"], equipSlots = ["NECKLACE", "CLOAK", "BELT", "BRACELET"];
+    const challengerIds = [...armorSlots, ...equipSlots].map((s) => "CHALLENGER_" + s);
+    const mythosArmorIds = armorSlots.map((s) => "MYTHOS_" + s), mythosEquipIds = equipSlots.map((s) => "MYTHOS_" + s);
+    const cnt = (ids) => ids.filter(got).length;
+    const pieceStep = (text, ids) => {
+      const st = step(text, cnt(ids) === ids.length, null, piecesFor(ids));
+      if (st.pieces) st.canNow = affordable(ids);
+      return st;
+    };
     const steps = [
       step("Buy a Griffin Pet (25k coins) and an Ancestral Spade (5k + 32 Gold Ingot) from Diana", !!griffin && (has("ANCESTRAL_SPADE") || has("ARCHAIC_SPADE") || has("DEIFIC_SPADE"))),
       step("Craft the Sword of Revelations - Hilt of Revelations drops from Minos Hunters", has("SWORD_OF_REVELATIONS") || has("DAEDALUS_AXE"),
         [["HILT_OF_REVELATIONS", 1], ["GRIFFIN_FEATHER", 12], ["ENCHANTED_ANCIENT_CLAW", 8], ["ENCHANTED_GOLD_BLOCK", 1]]),
       step("Craft the Archaic Spade - 6-burrow chains, and Mythos Fragments start dropping (6.76%)", has("ARCHAIC_SPADE") || has("DEIFIC_SPADE"),
         [["ANCESTRAL_SPADE", 1], ["HILT_OF_REVELATIONS", 1], ["ENCHANTED_ANCIENT_CLAW", 8], ["GRIFFIN_FEATHER", 32], ["ENCHANTED_GOLD_BLOCK", 2]]),
-      step(`Challenger armor + equipment (${challengerDone}/8) - claws, gold and feathers`, challengerDone === 8),
+      pieceStep(`Challenger armor + equipment (${cnt(challengerIds)}/8) - claws, gold and feathers`, challengerIds),
       step("Griffin to Rare (Uncommon + Rare stones at Kat) - unlocks Harpy and Gaia Construct", gTier >= 2),
       step("Griffin to Epic (stone + 250k at Kat, 1 day) - unlocks Minotaur (Daedalus Stick) and Minos Champion (Minos Relic)", gTier >= 3,
         [["MYTHOS_FRAGMENT", 4], ["GRIFFIN_FEATHER", 64], ["ENCHANTED_ANCIENT_CLAW", 4], ["ENCHANTED_GOLD_BLOCK", 12]]),
-      step(`Mythos armor (${mythosArmor}/4) - 4 Mythos Fragments per piece`, mythosArmor === 4),
+      pieceStep(`Mythos armor (${cnt(mythosArmorIds)}/4) - each piece upgrades the matching Challenger piece`, mythosArmorIds),
       step("Griffin to Legendary (stone + 500k at Kat, 3 days) - unlocks Sphinx and Minos Inquisitor (Chimera)", gTier >= 4,
         [["MYTHOS_FRAGMENT", 16], ["BRAIDED_GRIFFIN_FEATHER", 1], ["ENCHANTED_ANCIENT_CLAW", 32], ["ENCHANTED_GOLD_BLOCK", 96]]),
-      step(`Mythos equipment (${4 - mythosEquipMissing.length}/4) - each piece upgrades the matching Challenger piece`, mythosEquipMissing.length === 0,
-        [["MYTHOS_FRAGMENT", 4 * mythosEquipMissing.length], ["ENCHANTED_ANCIENT_CLAW", 32 * mythosEquipMissing.length], ["GRIFFIN_FEATHER", 64 * mythosEquipMissing.length], ["ENCHANTED_GOLD_BLOCK", 16 * mythosEquipMissing.length]]),
+      pieceStep(`Mythos equipment (${cnt(mythosEquipIds)}/4) - each piece upgrades the matching Challenger piece`, mythosEquipIds),
       step("Deific Spade - 8-burrow chains and a better Mythos Fragment rate (9.31%)", has("DEIFIC_SPADE"),
         [["ARCHAIC_SPADE", 1], ["HILT_OF_REVELATIONS", 1], ["BRAIDED_GRIFFIN_FEATHER", 1], ["MYTHOS_FRAGMENT", 16], ["ENCHANTED_ANCIENT_CLAW", 128], ["ENCHANTED_GOLD_BLOCK", 128]]),
       step("Daedalus Blade - needs 2 Daedalus Sticks (rare Minotaur drop, Epic+ Griffin)", has("DAEDALUS_AXE"),
@@ -782,7 +854,30 @@ async function main() {
         [["MYTHOS_FRAGMENT", 48], ["BRAIDED_GRIFFIN_FEATHER", 2], ["ENCHANTED_ANCIENT_CLAW", 128], ["ENCHANTED_GOLD_BLOCK", 192]]),
     ];
     // Mythos Fragments are shared by several remaining steps - show the pool
-    const fragNeed = steps.filter((s) => s.done === false).reduce((a, s) => a + (s.mats?.find((m) => m.name === "Mythos Fragment")?.need || 0), 0);
+    const fragOf = (mats) => mats?.find((m) => m.name === "Mythos Fragment")?.need || 0;
+    const fragNeed = steps.filter((s) => s.done === false).reduce((a, s) => a + fragOf(s.mats) + (s.pieces || []).filter((p) => !p.owned).reduce((b, p) => b + fragOf(p.mats), 0), 0);
+
+    // every item the event offers, grouped - verified against the wiki's event item tables
+    const src = (id, how) => ({ id, how });
+    const CATALOG = [
+      ["Spades", [src("ANCESTRAL_SPADE", "Buy from Diana: 5k coins + 32 Gold Ingot"), src("ARCHAIC_SPADE", "Craft - 6-burrow chains, Mythos Fragments"), src("DEIFIC_SPADE", "Craft - 8-burrow chains, best Mythos rate")]],
+      ["Weapons", [src("SWORD_OF_REVELATIONS", "Craft"), src("DAEDALUS_AXE", "Craft (Daedalus Blade)"), src("STARRED_DAEDALUS_AXE", "Fragged Daedalus Blade - craft")]],
+      ["Armor", [...armorSlots.map((s) => src("CHALLENGER_" + s, "Craft")), ...armorSlots.map((s) => src("MYTHOS_" + s, "Craft - consumes the Challenger piece")), src("CROWN_OF_GREED", "Drop from King Minos (Mythic Griffin)"), src("CROWN_OF_AVARICE", "Craft")]],
+      ["Equipment", [...equipSlots.map((s) => src("CHALLENGER_" + s, "Craft")), ...equipSlots.map((s) => src("MYTHOS_" + s, "Craft - consumes the Challenger piece")), src("MANTICORE_CLAW", "Craft - needs a Manti-core"), src("GOLDEN_FLEECE", "Craft - +15 Tracking on burrows")]],
+      ["Pet items (mob drops)", [src("ANTIQUE_REMEDIES", "Drop from Harpy"), src("CRETAN_URN", "Drop from Cretan Bull"), src("CROCHET_TIGER_PLUSHIE", "Drop from Siamese Lynx"), src("DWARF_TURTLE_SHELMET", "Drop from Gaia Construct"), src("MINOS_RELIC", "Drop from Minos Champion"), src("WASHED_UP_SOUVENIR", "Drop from Stranded Nymph")]],
+      ["Hephaestus upgrades", Object.values(HEPH).map((id) => src(id, "3 of the base item + a Hephaestus Anvil"))],
+      ["Rare drops", [src("HILT_OF_REVELATIONS", "Minos Hunter"), src("DAEDALUS_STICK", "Minotaur (rare)"), src("BRAIN_FOOD", "Sphinx - +5 Tracking"), src("MANTI_CORE", "Manticore"), src("FATEFUL_STINGER", "Manticore"), src("SHIMMERING_WOOL", "King Minos")]],
+      ["Extras", [src("DAEDALUS_NOTES", "Craft - Erudite reforge: +2 burrows per chain"), src("FOUR_EYED_FISH", "Griffin pet item: +13 MF, +55 def, +2k coins per burrow")]],
+    ];
+    const catalog = CATALOG.map(([group, list]) => ({
+      group,
+      items: list.map(({ id, how }) => {
+        const owned = got(id);
+        return { name: nice(id) === "Daedalus Axe" ? "Daedalus Blade" : nice(id) === "Starred Daedalus Axe" ? "Fragged Daedalus Blade" : nice(id), owned, how, mats: !owned && DR[id] ? evMats(DR[id]) : null };
+      }),
+    }));
+    const catOwned = catalog.reduce((a, g) => a + g.items.filter((i) => i.owned).length, 0);
+    const catTotal = catalog.reduce((a, g) => a + g.items.length, 0);
     const tips = [
       "Every Griffin stone is crafted from a Base Griffin Upgrade Stone (16 Ench Gold + 8 Ench Cobblestone + 8 Griffin Feather).",
       `Braided Griffin Feather = 160 Griffin Feather + 256 Soul String (you: ${fmt(evHave("GRIFFIN_FEATHER"))} feathers, ${fmt(evHave("SOUL_STRING"))} string).`,
@@ -798,9 +893,11 @@ async function main() {
         ["Griffin", griffin ? `${tierName(griffin.tier)} lvl ${griffin.level}` : "none"],
         ["Burrows dug", fmt(my.burrowsDugNext?.total)],
         ["Chains completed", fmt(my.burrowsChainsComplete?.total)],
-        ...kills,
+        ["Event items", `${catOwned}/${catTotal}`],
       ],
+      kills,
       steps, tips,
+      catalog, catalogOwned: catOwned, catalogTotal: catTotal,
       wiki: "https://hypixelskyblock.minecraft.wiki/w/Mythological_Ritual",
     });
   }
