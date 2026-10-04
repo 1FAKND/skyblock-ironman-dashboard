@@ -1,7 +1,8 @@
 // Generates accessory-db.json from NEU talisman_upgrades + per-item reqs
 const fs = require("fs");
-const misc = require(process.argv[2]);
-const OUT = process.argv[3];
+const [inFile, OUT] = process.argv.slice(2);
+if (!inFile || !OUT) { console.error("usage: node gen-accessory-db.js <NEU constants/misc.json> <output accessory-db.json>"); process.exit(1); }
+const misc = JSON.parse(fs.readFileSync(inFile, "utf8"));
 
 (async () => {
   const up = misc.talisman_upgrades; // { id: [nextIds] }

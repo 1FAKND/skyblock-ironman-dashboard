@@ -27,16 +27,29 @@ first time (normal for downloaded scripts), click **More info → Run anyway**.
 
 - **Prioritized To-Do List** — High/Medium/Low recommendations tuned for Ironman
   (skills to push, slayers that gate your progression, dungeon targets, accessory
-  crafts, minion slots, and more)
-- **Skills, Slayers, Dungeons** — levels with progress bars, class levels, secrets
+  crafts, minion slots, and more). Live events go to the top; low-priority items
+  fold into a dropdown
+- **Skills, Slayers, Dungeons** — levels with progress bars, class levels, secrets;
+  locked slayers show what unlocks them
+- **Slayer Loadouts** — the best weapon, armor, equipment and pet you own for each
+  slayer, with the reason for each pick, plus a recipe roadmap ranked by priority
+  (stats, materials you have vs need, per-piece armor progress, wiki links)
+- **Skill Loadouts** — the same for Mining, Farming, Fishing and Foraging, with
+  best-pet-by-zone tables and in-place upgrades (empty gem slots, drill parts)
+- **Events** — live mayor and calendar status, plus a step-by-step progression path
+  for Diana (Mythological Ritual, with the full event item list and Hephaestus
+  upgrades), Jacob's contests, Hoppity's Hunt, Spooky Festival, Season of Jerry,
+  Fishing Festival and Mining Fiesta. Completed steps fold away
 - **Gear** — worn armor & equipment with full in-game tooltips on hover
 - **Gear by Activity** — every set found across your wardrobe, ender chest,
   backpacks and museum, grouped by purpose (mining / farming / fishing / combat /
   foraging), plus a "housekeeping" list of free wins (duplicate accessories,
   complete sets buried in storage, unused pet upgrade stones…)
-- **Accessory Tracker** — upgrade chains you already qualify for, and notable
-  Ironman-obtainable accessories you're missing, each with its source and its
-  unlock requirement checked against your profile
+- **Accessory Tracker** — upgrade chains you already qualify for, with the
+  materials you have vs need, event-only warnings, and notable Ironman-obtainable
+  accessories you're missing
+- **Accessory Collection** — every upgradable accessory family as a stage chain
+  showing which stages you own and what each missing stage requires
 - **What to Craft First** — craft targets gate-checked against your actual
   slayer levels, collection tiers and sack contents (✓/✗ per requirement),
   grouped into craft-now / gather-materials / locked-behind-a-bottleneck,
@@ -107,8 +120,14 @@ for an installed one.
   official Hypixel API), analyzes it, and writes `data.js`.
 - `dashboard.html` is a single self-contained page that renders `data.js`.
   It works offline once data is fetched.
-- Your data never leaves your machine - the only network request is fetching your
-  own (already public) profile.
+- Your data never leaves your machine. Each refresh makes three requests: your
+  (already public) profile from the Elite API - the only one that includes your
+  username - plus the current mayor from Hypixel's public election endpoint and a
+  version check against this repository. Neither of those two sends anything about you.
+- `accessory-db.json` is generated from the NotEnoughUpdates item repository. To
+  rebuild it after a game update: download
+  [`constants/misc.json`](https://raw.githubusercontent.com/NotEnoughUpdates/NotEnoughUpdates-REPO/master/constants/misc.json)
+  and run `node gen-accessory-db.js misc.json accessory-db.json`.
 
 Note: the dashboard works for normal profiles too, but the recommendations assume
 Ironman rules (no Auction House / Bazaar).

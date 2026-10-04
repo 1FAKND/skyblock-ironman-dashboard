@@ -12,7 +12,7 @@
 const fs = require("fs");
 const path = require("path");
 
-const VERSION = "1.16.0"; // bump on every meaningful release - the update check compares this
+const VERSION = "1.17.0"; // bump on every meaningful release - the update check compares this
 const REPO_URL = "https://github.com/1FAKND/skyblock-ironman-dashboard";
 const REMOTE_SELF = "https://raw.githubusercontent.com/1FAKND/skyblock-ironman-dashboard/main/fetch-data.js";
 
