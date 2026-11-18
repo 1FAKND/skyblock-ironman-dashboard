@@ -113,6 +113,35 @@ unzip it, and copy just the `node.exe` file into the dashboard folder. The
 refresh script automatically uses a `node.exe` sitting next to it before looking
 for an installed one.
 
+## On an LG TV (webOS)
+
+You can put the dashboard on an LG smart TV as its own app. The TV just shows
+it; your PC fetches the data and sends it over your home network.
+
+**One time, on the TV:**
+
+1. Create a free account at [webostv.developer.lge.com](https://webostv.developer.lge.com)
+   (Sign In → Create Account) and confirm the email LG sends you.
+2. On the TV, install **Developer Mode** from the LG Content Store, open it and
+   sign in with that account.
+3. Switch **Dev Mode Status** ON (the TV restarts), open the app again and
+   switch **Key Server** ON. Leave this screen up - it shows the TV's
+   **IP address** and **Passphrase**.
+
+**On your PC** (same Wi-Fi/network as the TV): double-click
+**`Install on TV.bat`**. The first time it downloads LG's tools and asks for the
+IP address and passphrase. It then refreshes your data, installs
+**SkyBlock Dashboard** on the TV and opens it.
+
+- Run `Install on TV.bat` again whenever you want fresh data on the TV.
+- On the TV: use the Magic Remote pointer to click and hover. The up/down arrows
+  scroll, and left/right or channel up/down move a page at a time.
+- LG switches Developer Mode off after about 50 hours and removes the app.
+  Open the Developer Mode app every day or two and press **Extend** to keep it.
+- If the TV's IP address changes, or pairing stops working, run
+  `Install on TV.bat --setup` from a command prompt, or just follow the retry
+  prompt it shows.
+
 ## How it works
 
 - `fetch-data.js` pulls your profile from the community-run

@@ -1,3 +1,9 @@
 # personal data - never commit
 config.json
 data.js
+
+# TV app build output / local TV settings
+tv/node_modules/
+tv/package-lock.json
+tv/build/
+tv/tv-device.json

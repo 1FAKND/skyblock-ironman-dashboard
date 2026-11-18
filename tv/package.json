@@ -1,0 +1,8 @@
+{
+  "name": "skyblock-dashboard-tv",
+  "private": true,
+  "description": "Packages the dashboard as an LG webOS TV app and installs it",
+  "dependencies": {
+    "@webos-tools/cli": "3.2.6"
+  }
+}
